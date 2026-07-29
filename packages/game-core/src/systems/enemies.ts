@@ -211,6 +211,7 @@ const scratchSight = vec3();
 const scratchShot = vec3();
 const scratchOrigin = vec3();
 const scratchMuzzle = vec3();
+const scratchChase = vec3();
 
 // ---------------------------------------------------------------------------
 // Per-enemy memory
@@ -233,9 +234,6 @@ interface EnemyMemory {
   lastSeen: Vec3;
   /** True once the unit has been walking home rather than patrolling. */
   returningHome: boolean;
-  /** Committed movement heading, used by the rate-limited pursuer. */
-  heading: number;
-  headingInit: boolean;
   /** Strafe direction and the countdown to reversing it. */
   strafeSign: number;
   strafeRemaining: number;
@@ -250,6 +248,8 @@ interface EnemyMemory {
   pendingAttack: PendingAttack;
   /** Horizontal reach the pending attack was started at. */
   attackReach: number;
+  /** Set once the restoration beat has finished, so it can never replay. */
+  restored: boolean;
 }
 
 export type PendingAttack = 'none' | 'melee' | 'heavy' | 'volley' | 'dive' | 'spawn';
@@ -263,8 +263,6 @@ function memoryOf(enemy: MutableEnemy): EnemyMemory {
     sightGrace: 0,
     lastSeen: vec3(enemy.position.x, enemy.position.y, enemy.position.z),
     returningHome: false,
-    heading: enemy.yaw,
-    headingInit: false,
     strafeSign: 1,
     strafeRemaining: FLYER_STRAFE_SECONDS,
     diveRemaining: 0,
@@ -273,6 +271,7 @@ function memoryOf(enemy: MutableEnemy): EnemyMemory {
     patternCount: 0,
     pendingAttack: 'none',
     attackReach: 0,
+    restored: false,
   };
   memories.set(enemy, created);
   return created;
@@ -338,6 +337,20 @@ export function hasLineOfSight(ctx: SimContext, from: Vec3, to: Vec3): boolean {
   const blocked = ctx.physics.raycast(from, scratchSight, span, SOLID_MASK, null);
   if (blocked === null) return true;
   return blocked.distance >= span - 1e-3;
+}
+
+/**
+ * The point an alerted enemy moves toward.
+ *
+ * While the player is in sight this is simply where they are. During the grace
+ * period after sight breaks it is the *last place they were actually seen*, so
+ * an enemy that lost you behind a pillar commits to that spot instead of
+ * tracking you through the geometry — which is what makes breaking line of
+ * sight a real option rather than a cosmetic one.
+ */
+function chasePointInto(target: Vec3, ctx: SimContext, memory: EnemyMemory): Vec3 {
+  const seenThisStep = memory.sightGrace >= SIGHT_MEMORY_SECONDS;
+  return copy(target, seenThisStep ? ctx.world.player.position : memory.lastSeen);
 }
 
 /** Horizontal steering toward a point, stopping inside `arriveRadius`. */
@@ -731,8 +744,8 @@ function patrolInto(
   }
 
   const size = route.length;
-  const index = ((enemy.patrolIndex % size) + size) % size;
-  const point = route[index];
+  let index = ((enemy.patrolIndex % size) + size) % size;
+  let point = route[index];
   if (point === undefined) return set(out, 0, 0, 0);
 
   const span =
@@ -740,7 +753,13 @@ function patrolInto(
       ? distance(enemy.position, point)
       : distanceXZ(enemy.position, point);
   if (span <= PATROL_ARRIVE_RADIUS) {
-    enemy.patrolIndex = (index + 1) % size;
+    // Take the next leg in the same step, so arriving never costs a frame of
+    // standing still — a patrol that stutters at its waypoints is harder to
+    // time a run against than one that turns cleanly.
+    index = (index + 1) % size;
+    enemy.patrolIndex = index;
+    const next = route[index];
+    if (next !== undefined) point = next;
   }
 
   steerInto(out, enemy.position, point, speed, 0);
@@ -947,8 +966,8 @@ function updateScout(
     updateUnaware(out, enemy, def, memory, dt);
     return;
   }
-  const player = ctx.world.player;
-  steerInto(out, enemy.position, player.position, def.moveSpeed, def.attackRadius * 0.5);
+  chasePointInto(scratchChase, ctx, memory);
+  steerInto(out, enemy.position, scratchChase, def.moveSpeed, def.attackRadius * 0.5);
   faceTarget(ctx, enemy, def, dt);
   if (canBeginAttack(enemy) && inAttackRange(ctx, enemy, def)) {
     set(out, 0, 0, 0);
@@ -973,7 +992,16 @@ function updateTurret(
   playerCentreInto(scratchTarget, ctx);
   if (distance(scratchSelf, scratchTarget) > def.attackRadius) return;
   if (!hasLineOfSight(ctx, scratchSelf, scratchTarget)) return;
-  beginTelegraph(ctx, enemy, def, memory, def.projectile === undefined ? 'melee' : 'volley');
+  if (def.projectile === undefined) {
+    // A pylon with no shot flails at whatever is standing on it; its long
+    // `attackRadius` describes a firing arc, not the length of its arms.
+    const reach = Math.min(def.attackRadius, def.bodyRadius + ctx.movement.bodyRadius + 1);
+    if (inAttackRange(ctx, enemy, def, reach)) {
+      beginTelegraph(ctx, enemy, def, memory, 'melee', 1, reach);
+    }
+    return;
+  }
+  beginTelegraph(ctx, enemy, def, memory, 'volley');
 }
 
 /** Writes the hover point a flyer holds while it waits for its dive. */
@@ -986,8 +1014,8 @@ function hoverInto(
   standoff: number,
   dt: number,
 ): void {
-  const player = ctx.world.player;
   const speed = def.moveSpeed;
+  chasePointInto(scratchChase, ctx, memory);
 
   memory.strafeRemaining -= dt;
   if (memory.strafeRemaining <= 0) {
@@ -995,8 +1023,8 @@ function hoverInto(
     memory.strafeSign = memory.strafeSign >= 0 ? -1 : 1;
   }
 
-  const dx = player.position.x - enemy.position.x;
-  const dz = player.position.z - enemy.position.z;
+  const dx = scratchChase.x - enemy.position.x;
+  const dz = scratchChase.z - enemy.position.z;
   const span = Math.sqrt(dx * dx + dz * dz);
   if (span < 1e-6) {
     set(out, 0, 0, 0);
@@ -1009,7 +1037,7 @@ function hoverInto(
     set(out, nx * radial - nz * tangential, 0, nz * radial + nx * tangential);
   }
 
-  const desiredY = player.position.y + FLYER_HOVER_HEIGHT;
+  const desiredY = scratchChase.y + FLYER_HOVER_HEIGHT;
   out.y = clamp((desiredY - enemy.position.y) * FLYER_VERTICAL_GAIN, -speed, speed);
 }
 
@@ -1084,7 +1112,8 @@ function updateShield(
     updateUnaware(out, enemy, def, memory, dt);
     return;
   }
-  steerInto(out, enemy.position, ctx.world.player.position, def.moveSpeed, def.attackRadius * 0.6);
+  chasePointInto(scratchChase, ctx, memory);
+  steerInto(out, enemy.position, scratchChase, def.moveSpeed, def.attackRadius * 0.6);
   faceTarget(ctx, enemy, def, dt);
   if (canBeginAttack(enemy) && inAttackRange(ctx, enemy, def)) {
     set(out, 0, 0, 0);
@@ -1106,9 +1135,9 @@ function updatePursuer(
     return;
   }
 
-  const player = ctx.world.player;
-  const dx = player.position.x - enemy.position.x;
-  const dz = player.position.z - enemy.position.z;
+  chasePointInto(scratchChase, ctx, memory);
+  const dx = scratchChase.x - enemy.position.x;
+  const dz = scratchChase.z - enemy.position.z;
   const wanted = dx * dx + dz * dz < 1e-8 ? enemy.yaw : yawForDirection(dx, dz);
   if (!memory.headingInit) {
     memory.heading = enemy.yaw;
@@ -1195,10 +1224,11 @@ function updateMimic(
   const form = ctx.world.player.form;
   if (enemy.mimickedForm !== form) enemy.mimickedForm = form;
 
-  const player = ctx.world.player;
-  const standoff = def.projectile === undefined ? def.attackRadius * 0.5 : def.attackRadius * MIMIC_STANDOFF;
-  const dx = player.position.x - enemy.position.x;
-  const dz = player.position.z - enemy.position.z;
+  const standoff =
+    def.projectile === undefined ? def.attackRadius * 0.5 : def.attackRadius * MIMIC_STANDOFF;
+  chasePointInto(scratchChase, ctx, memory);
+  const dx = scratchChase.x - enemy.position.x;
+  const dz = scratchChase.z - enemy.position.z;
   const span = Math.sqrt(dx * dx + dz * dz);
   if (span < 1e-6) {
     set(out, 0, 0, 0);
@@ -1244,15 +1274,15 @@ function updateElite(
     return;
   }
 
-  const player = ctx.world.player;
   faceTarget(ctx, enemy, def, dt);
+  chasePointInto(scratchChase, ctx, memory);
 
   const ranged = memory.pattern === 0;
   if (ranged && def.projectile !== undefined) {
     // Ranged stance: hold the line and shoot down it.
     const standoff = def.attackRadius * ELITE_RANGED_STANDOFF;
-    const dx = player.position.x - enemy.position.x;
-    const dz = player.position.z - enemy.position.z;
+    const dx = scratchChase.x - enemy.position.x;
+    const dz = scratchChase.z - enemy.position.z;
     const span = Math.sqrt(dx * dx + dz * dz);
     if (span < 1e-6) {
       set(out, 0, 0, 0);
@@ -1276,7 +1306,7 @@ function updateElite(
   // Closing stance — and the fallback for an elite with no ranged option at
   // all, which then alternates quick strikes with a heavy slam instead.
   const reach = eliteMeleeReach(ctx, def);
-  steerInto(out, enemy.position, player.position, def.moveSpeed, reach * 0.7);
+  steerInto(out, enemy.position, scratchChase, def.moveSpeed, reach * 0.7);
   if (!canBeginAttack(enemy) || !inAttackRange(ctx, enemy, def, reach)) return;
   set(out, 0, 0, 0);
   const last = memory.patternCount >= ELITE_ATTACKS_PER_PATTERN - 1;
@@ -1354,7 +1384,12 @@ function beginCleanse(enemy: MutableEnemy): void {
   enemy.dead = false;
 }
 
-function tickCleanse(ctx: SimContext, enemy: MutableEnemy, dt: number): void {
+function tickCleanse(
+  ctx: SimContext,
+  enemy: MutableEnemy,
+  memory: EnemyMemory,
+  dt: number,
+): void {
   if (enemy.dead) {
     // A stray shot landed on a unit that was already being restored, so
     // `damageEnemy` counted it a second time. Undo the duplicate rather than
@@ -1369,6 +1404,7 @@ function tickCleanse(ctx: SimContext, enemy: MutableEnemy, dt: number): void {
   if (enemy.cleanseRemaining <= 0) {
     enemy.dead = true;
     enemy.phase = 'dead';
+    memory.restored = true;
   }
 }
 
@@ -1385,8 +1421,18 @@ function updateEnemy(ctx: SimContext, enemy: MutableEnemy, dt: number): void {
     return;
   }
 
+  const memory = memoryOf(enemy);
+
+  // The restoration beat has already played: stay retired even if the step loop
+  // has not pruned this entry yet.
+  if (memory.restored) {
+    enemy.dead = true;
+    enemy.phase = 'dead';
+    set(enemy.velocity, 0, 0, 0);
+    return;
+  }
   if (enemy.phase === 'cleansing' || enemy.cleanseRemaining > 0) {
-    tickCleanse(ctx, enemy, dt);
+    tickCleanse(ctx, enemy, memory, dt);
     return;
   }
   if (enemy.health <= 0) {
@@ -1401,8 +1447,6 @@ function updateEnemy(ctx: SimContext, enemy: MutableEnemy, dt: number): void {
     return;
   }
   if (enemy.dead) return;
-
-  const memory = memoryOf(enemy);
 
   enemy.phaseTime += dt;
   enemy.attackCooldown = Math.max(0, enemy.attackCooldown - dt);

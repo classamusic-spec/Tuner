@@ -1104,7 +1104,13 @@ export const FRACTURED_GARDEN: StageDef = {
      */
     {
       id: 'rail-luminous-root-descent',
-      points: [v(12, 12.9, -80), v(8, 10, -90), v(0, 6.5, -100), v(-6, 2.5, -106), v(-11, 0.4, -110)],
+      points: [
+        v(12, 12.9, -80),
+        v(8, 10, -90),
+        v(0, 6.5, -100),
+        v(-6, 2.5, -106),
+        v(-11, 0.4, -110),
+      ],
       speed: 17,
       style: 'root',
     },
@@ -1594,7 +1600,12 @@ export const FRACTURED_GARDEN: StageDef = {
     // first double jump arrives in the same second as the double jump.
     { id: 'pick-shard-terrace-low', kind: 'resonance-shard', amount: 5, position: v(-6, 0.4, -27) },
     { id: 'pick-shard-terrace-mid', kind: 'resonance-shard', amount: 5, position: v(6, 1.8, -31) },
-    { id: 'pick-shard-terrace-high', kind: 'resonance-shard', amount: 12, position: v(12, 4.2, -36) },
+    {
+      id: 'pick-shard-terrace-high',
+      kind: 'resonance-shard',
+      amount: 12,
+      position: v(12, 4.2, -36),
+    },
 
     // Section 3 — the hollow.
     { id: 'pick-shard-hollow-a', kind: 'resonance-shard', amount: 5, position: v(-4, -2.4, -50) },
@@ -1610,8 +1621,18 @@ export const FRACTURED_GARDEN: StageDef = {
     },
 
     // Section 4 — chasm and basin.
-    { id: 'pick-shard-bridge-west', kind: 'resonance-shard', amount: 5, position: v(-14, -2.1, -72) },
-    { id: 'pick-shard-bridge-east', kind: 'resonance-shard', amount: 5, position: v(14, -1.3, -73) },
+    {
+      id: 'pick-shard-bridge-west',
+      kind: 'resonance-shard',
+      amount: 5,
+      position: v(-14, -2.1, -72),
+    },
+    {
+      id: 'pick-shard-bridge-east',
+      kind: 'resonance-shard',
+      amount: 5,
+      position: v(14, -1.3, -73),
+    },
     {
       id: 'pick-coherence-basin',
       kind: 'coherence-fragment',
@@ -1688,8 +1709,18 @@ export const FRACTURED_GARDEN: StageDef = {
     },
 
     // West flank and gallery.
-    { id: 'pick-shard-highline-a', kind: 'resonance-shard', amount: 8, position: v(-38, 14.3, -142) },
-    { id: 'pick-shard-highline-b', kind: 'resonance-shard', amount: 8, position: v(-32, 19.3, -168) },
+    {
+      id: 'pick-shard-highline-a',
+      kind: 'resonance-shard',
+      amount: 8,
+      position: v(-38, 14.3, -142),
+    },
+    {
+      id: 'pick-shard-highline-b',
+      kind: 'resonance-shard',
+      amount: 8,
+      position: v(-32, 19.3, -168),
+    },
     { id: 'pick-keeper-memory-gallery', kind: 'keeper-memory', position: v(-1, 0.4, -195) },
 
     /**
@@ -1713,23 +1744,68 @@ export const FRACTURED_GARDEN: StageDef = {
     /** P1 — the root bridge. Root, Fifth, Octave, in that order, spread across
      *  the chasm mouth so the sequence is a route rather than a chord. Eight
      *  second hold: nobody fails this on timing. */
-    { id: 'res-bridge-root', position: v(0, -1.9, -67), degree: 0, puzzleId: 'puz-root-bridge-sequence', order: 0, holdSeconds: 8 },
-    { id: 'res-bridge-fifth', position: v(-14, -1.5, -72), degree: 4, puzzleId: 'puz-root-bridge-sequence', order: 1, holdSeconds: 8 },
-    { id: 'res-bridge-octave', position: v(14, -0.7, -73), degree: 7, puzzleId: 'puz-root-bridge-sequence', order: 2, holdSeconds: 8 },
+    {
+      id: 'res-bridge-root',
+      position: v(0, -1.9, -67),
+      degree: 0,
+      puzzleId: 'puz-root-bridge-sequence',
+      order: 0,
+      holdSeconds: 8,
+    },
+    {
+      id: 'res-bridge-fifth',
+      position: v(-14, -1.5, -72),
+      degree: 4,
+      puzzleId: 'puz-root-bridge-sequence',
+      order: 1,
+      holdSeconds: 8,
+    },
+    {
+      id: 'res-bridge-octave',
+      position: v(14, -0.7, -73),
+      degree: 7,
+      puzzleId: 'puz-root-bridge-sequence',
+      order: 2,
+      holdSeconds: 8,
+    },
 
     /** P2 — the cascade gate. Two resonators 9 m apart with a 2.2 s hold: one
      *  Harmonic Burst covers both, or two quick pulses if the player would
      *  rather aim. The stage's argument for the burst. */
-    { id: 'res-gate-north', position: v(-20, -1.4, -85.5), degree: 2, puzzleId: 'puz-cascade-gate-simultaneous', holdSeconds: 2.2 },
-    { id: 'res-gate-south', position: v(-20, -1.4, -94.5), degree: 5, puzzleId: 'puz-cascade-gate-simultaneous', holdSeconds: 2.2 },
+    {
+      id: 'res-gate-north',
+      position: v(-20, -1.4, -85.5),
+      degree: 2,
+      puzzleId: 'puz-cascade-gate-simultaneous',
+      holdSeconds: 2.2,
+    },
+    {
+      id: 'res-gate-south',
+      position: v(-20, -1.4, -94.5),
+      degree: 5,
+      puzzleId: 'puz-cascade-gate-simultaneous',
+      holdSeconds: 2.2,
+    },
 
     /**
      * P3 — the canopy roots, after the mini-boss. A sustain: hold both notes
      * open for three and a half seconds while the rhythm steps run underneath.
      * Same mechanic as P1, asked for in a different tense.
      */
-    { id: 'res-canopy-sustain-a', position: v(-14, 10.5, -130), degree: 3, puzzleId: 'puz-canopy-sustain', holdSeconds: 3.5 },
-    { id: 'res-canopy-sustain-b', position: v(-8, 10.5, -130), degree: 6, puzzleId: 'puz-canopy-sustain', holdSeconds: 3.5 },
+    {
+      id: 'res-canopy-sustain-a',
+      position: v(-14, 10.5, -130),
+      degree: 3,
+      puzzleId: 'puz-canopy-sustain',
+      holdSeconds: 3.5,
+    },
+    {
+      id: 'res-canopy-sustain-b',
+      position: v(-8, 10.5, -130),
+      degree: 6,
+      puzzleId: 'puz-canopy-sustain',
+      holdSeconds: 3.5,
+    },
 
     /**
      * P4 — THE RETURN GATE. Three resonators around the cascade basin with a
@@ -1739,15 +1815,47 @@ export const FRACTURED_GARDEN: StageDef = {
      * note ringing after the player has left it, and Echo Form comes from Oru.
      * This is the stage's built-in reason to walk back in.
      */
-    { id: 'res-echo-west', position: v(-42, -1.4, -92), degree: 0, puzzleId: 'puz-cascade-echo', holdSeconds: 1.1 },
-    { id: 'res-echo-centre', position: v(-26, -1.4, -87), degree: 2, puzzleId: 'puz-cascade-echo', holdSeconds: 1.1 },
-    { id: 'res-echo-east', position: v(-12, -1.4, -93), degree: 4, puzzleId: 'puz-cascade-echo', holdSeconds: 1.1 },
+    {
+      id: 'res-echo-west',
+      position: v(-42, -1.4, -92),
+      degree: 0,
+      puzzleId: 'puz-cascade-echo',
+      holdSeconds: 1.1,
+    },
+    {
+      id: 'res-echo-centre',
+      position: v(-26, -1.4, -87),
+      degree: 2,
+      puzzleId: 'puz-cascade-echo',
+      holdSeconds: 1.1,
+    },
+    {
+      id: 'res-echo-east',
+      position: v(-12, -1.4, -93),
+      degree: 4,
+      puzzleId: 'puz-cascade-echo',
+      holdSeconds: 1.1,
+    },
 
     /** P5 — the Seed Vault. A plain two-note sequence on the optional route,
      *  because the price of the branch is already the spore vents and the
      *  hounds. */
-    { id: 'res-vault-first', position: v(-57, 15, -50), degree: 1, puzzleId: 'puz-vault-sequence', order: 0, holdSeconds: 6 },
-    { id: 'res-vault-second', position: v(-49, 15, -50), degree: 5, puzzleId: 'puz-vault-sequence', order: 1, holdSeconds: 6 },
+    {
+      id: 'res-vault-first',
+      position: v(-57, 15, -50),
+      degree: 1,
+      puzzleId: 'puz-vault-sequence',
+      order: 0,
+      holdSeconds: 6,
+    },
+    {
+      id: 'res-vault-second',
+      position: v(-49, 15, -50),
+      degree: 5,
+      puzzleId: 'puz-vault-sequence',
+      order: 1,
+      holdSeconds: 6,
+    },
   ],
 
   // -------------------------------------------------------------------------
@@ -1905,7 +2013,10 @@ export const FRACTURED_GARDEN: StageDef = {
       position: v(0, -1.5, -47),
       shape: { kind: 'box', halfExtents: v(12, 3, 2) },
       once: true,
-      action: { kind: 'spawnWave', spawnIds: ['enm-whisperer-hollow-a', 'enm-whisperer-hollow-b', 'enm-whisperer-hollow-c'] },
+      action: {
+        kind: 'spawnWave',
+        spawnIds: ['enm-whisperer-hollow-a', 'enm-whisperer-hollow-b', 'enm-whisperer-hollow-c'],
+      },
     },
     {
       id: 'trg-tut-pulse',
@@ -1951,7 +2062,10 @@ export const FRACTURED_GARDEN: StageDef = {
       position: v(-14, -1.5, -90),
       shape: { kind: 'box', halfExtents: v(3, 4, 6) },
       once: true,
-      action: { kind: 'spawnWave', spawnIds: ['enm-guardian-seedbed', 'enm-bloom-basin-north', 'enm-bloom-basin-south'] },
+      action: {
+        kind: 'spawnWave',
+        spawnIds: ['enm-guardian-seedbed', 'enm-bloom-basin-north', 'enm-bloom-basin-south'],
+      },
     },
     {
       id: 'trg-tut-water-lift',
@@ -1974,7 +2088,10 @@ export const FRACTURED_GARDEN: StageDef = {
       position: v(-30, 14, -77),
       shape: { kind: 'box', halfExtents: v(2, 4, 6) },
       once: true,
-      action: { kind: 'spawnWave', spawnIds: ['enm-pylon-vineway-west', 'enm-pylon-vineway-east', 'enm-drifter-vineway'] },
+      action: {
+        kind: 'spawnWave',
+        spawnIds: ['enm-pylon-vineway-west', 'enm-pylon-vineway-east', 'enm-drifter-vineway'],
+      },
     },
 
     // --- 7. Optional side route --------------------------------------------
@@ -1983,7 +2100,10 @@ export const FRACTURED_GARDEN: StageDef = {
       position: v(-46, 14, -75),
       shape: { kind: 'box', halfExtents: v(3, 4, 4) },
       once: true,
-      action: { kind: 'objective', text: 'Optional: the Seed Vault, north-west along the terrace walk.' },
+      action: {
+        kind: 'objective',
+        text: 'Optional: the Seed Vault, north-west along the terrace walk.',
+      },
     },
     {
       id: 'trg-vault-guard',
@@ -1999,7 +2119,10 @@ export const FRACTURED_GARDEN: StageDef = {
       position: v(4, 13.5, -83),
       shape: { kind: 'box', halfExtents: v(8, 4, 2) },
       once: true,
-      action: { kind: 'spawnWave', spawnIds: ['enm-mine-fragment-a', 'enm-mine-fragment-b', 'enm-mine-fragment-c'] },
+      action: {
+        kind: 'spawnWave',
+        spawnIds: ['enm-mine-fragment-a', 'enm-mine-fragment-b', 'enm-mine-fragment-c'],
+      },
     },
     {
       id: 'trg-tut-rail',
@@ -2105,7 +2228,12 @@ export const FRACTURED_GARDEN: StageDef = {
       once: true,
       action: {
         kind: 'spawnWave',
-        spawnIds: ['enm-mine-highline-a', 'enm-mine-highline-b', 'enm-drifter-highline-a', 'enm-drifter-highline-b'],
+        spawnIds: [
+          'enm-mine-highline-a',
+          'enm-mine-highline-b',
+          'enm-drifter-highline-a',
+          'enm-drifter-highline-b',
+        ],
       },
     },
     /** Halfway along the flank the fog opens and Oru is directly below, all six
@@ -2125,7 +2253,14 @@ export const FRACTURED_GARDEN: StageDef = {
       position: v(-1, 1, -198),
       shape: { kind: 'box', halfExtents: v(6, 4, 3) },
       once: true,
-      action: { kind: 'spawnWave', spawnIds: ['enm-conductor-approach', 'enm-whisperer-approach-a', 'enm-whisperer-approach-b'] },
+      action: {
+        kind: 'spawnWave',
+        spawnIds: [
+          'enm-conductor-approach',
+          'enm-whisperer-approach-a',
+          'enm-whisperer-approach-b',
+        ],
+      },
     },
     {
       id: 'trg-approach-cleared',
@@ -2242,9 +2377,24 @@ export const FRACTURED_GARDEN: StageDef = {
     {
       id: 'cut-garden-overlook',
       lines: [
-        { speaker: 'Kesh', text: 'That was a garden. Nine terraces, water on every one of them.', seconds: 3.4, emote: 'quiet' },
-        { speaker: 'Kesh', text: 'You can hear it from here. Everything in it is singing eight cycles sharp.', seconds: 3.8, emote: 'listening' },
-        { speaker: 'Auralith', text: 'Source bearing: the spire. Something large is holding the note down there.', seconds: 3.4, emote: 'scan' },
+        {
+          speaker: 'Kesh',
+          text: 'That was a garden. Nine terraces, water on every one of them.',
+          seconds: 3.4,
+          emote: 'quiet',
+        },
+        {
+          speaker: 'Kesh',
+          text: 'You can hear it from here. Everything in it is singing eight cycles sharp.',
+          seconds: 3.8,
+          emote: 'listening',
+        },
+        {
+          speaker: 'Auralith',
+          text: 'Source bearing: the spire. Something large is holding the note down there.',
+          seconds: 3.4,
+          emote: 'scan',
+        },
       ],
       cameraFocus: v(0, 30, -160),
       cameraDistance: 34,
@@ -2254,8 +2404,18 @@ export const FRACTURED_GARDEN: StageDef = {
     {
       id: 'cut-virus-bloom',
       lines: [
-        { speaker: 'Kesh', text: "That is not a flower. That's the infection wearing one.", seconds: 3.2, emote: 'wary' },
-        { speaker: 'Auralith', text: 'No Garden signature inside it. Nothing to cleanse — only to break.', seconds: 3.4, emote: 'scan' },
+        {
+          speaker: 'Kesh',
+          text: "That is not a flower. That's the infection wearing one.",
+          seconds: 3.2,
+          emote: 'wary',
+        },
+        {
+          speaker: 'Auralith',
+          text: 'No Garden signature inside it. Nothing to cleanse — only to break.',
+          seconds: 3.4,
+          emote: 'scan',
+        },
       ],
       cameraFocus: v(22, 3, -108),
       cameraDistance: 22,
@@ -2265,8 +2425,18 @@ export const FRACTURED_GARDEN: StageDef = {
     {
       id: 'cut-canopy-awake',
       lines: [
-        { speaker: 'Kesh', text: 'The roots moved. On the beat — they moved on the beat.', seconds: 3, emote: 'surprised' },
-        { speaker: 'Auralith', text: 'The seedbed was smothering them. They are keeping time again. Use it.', seconds: 3.6, emote: 'warm' },
+        {
+          speaker: 'Kesh',
+          text: 'The roots moved. On the beat — they moved on the beat.',
+          seconds: 3,
+          emote: 'surprised',
+        },
+        {
+          speaker: 'Auralith',
+          text: 'The seedbed was smothering them. They are keeping time again. Use it.',
+          seconds: 3.6,
+          emote: 'warm',
+        },
       ],
       cameraFocus: v(6, 8, -128),
       cameraDistance: 20,
@@ -2276,10 +2446,25 @@ export const FRACTURED_GARDEN: StageDef = {
     {
       id: 'cut-commander-approach',
       lines: [
-        { speaker: 'Auralith', text: 'Two signatures ahead. One is the Amplifier. The other is underneath it.', seconds: 3.6, emote: 'scan' },
+        {
+          speaker: 'Auralith',
+          text: 'Two signatures ahead. One is the Amplifier. The other is underneath it.',
+          seconds: 3.6,
+          emote: 'scan',
+        },
         { speaker: 'Kesh', text: 'Underneath it?', seconds: 1.6, emote: 'quiet' },
-        { speaker: 'Auralith', text: 'Four hundred and thirty-two, very faint, still trying. He is still in there.', seconds: 4, emote: 'grave' },
-        { speaker: 'Kesh', text: 'Then we do not break him. We tune him.', seconds: 2.8, emote: 'resolved' },
+        {
+          speaker: 'Auralith',
+          text: 'Four hundred and thirty-two, very faint, still trying. He is still in there.',
+          seconds: 4,
+          emote: 'grave',
+        },
+        {
+          speaker: 'Kesh',
+          text: 'Then we do not break him. We tune him.',
+          seconds: 2.8,
+          emote: 'resolved',
+        },
       ],
       cameraFocus: v(0, 5, -175),
       cameraDistance: 26,
@@ -2289,9 +2474,24 @@ export const FRACTURED_GARDEN: StageDef = {
     {
       id: 'cut-frequency-core',
       lines: [
-        { speaker: 'Oru', text: '…the ninth terrace. I never finished planting the ninth terrace.', seconds: 4, emote: 'exhausted' },
-        { speaker: 'Kesh', text: "You will. Hold still — this part is loud.", seconds: 2.8, emote: 'gentle' },
-        { speaker: 'Auralith', text: 'Frequency Core recovered. Playing the Garden chord back into the region.', seconds: 3.8, emote: 'bright' },
+        {
+          speaker: 'Oru',
+          text: '…the ninth terrace. I never finished planting the ninth terrace.',
+          seconds: 4,
+          emote: 'exhausted',
+        },
+        {
+          speaker: 'Kesh',
+          text: 'You will. Hold still — this part is loud.',
+          seconds: 2.8,
+          emote: 'gentle',
+        },
+        {
+          speaker: 'Auralith',
+          text: 'Frequency Core recovered. Playing the Garden chord back into the region.',
+          seconds: 3.8,
+          emote: 'bright',
+        },
       ],
       cameraFocus: v(0, 4, -160),
       cameraDistance: 20,
@@ -2301,9 +2501,24 @@ export const FRACTURED_GARDEN: StageDef = {
     {
       id: 'cut-return-sanctuary',
       lines: [
-        { speaker: 'Oru', text: 'The water is arguing with itself again. It used to do that.', seconds: 3.4, emote: 'warm' },
-        { speaker: 'Kesh', text: 'Nine more regions sound like you did an hour ago.', seconds: 3, emote: 'tired' },
-        { speaker: 'Auralith', text: 'Echo Form is stable. Three things in this garden will answer to it now that would not before.', seconds: 4.2, emote: 'bright' },
+        {
+          speaker: 'Oru',
+          text: 'The water is arguing with itself again. It used to do that.',
+          seconds: 3.4,
+          emote: 'warm',
+        },
+        {
+          speaker: 'Kesh',
+          text: 'Nine more regions sound like you did an hour ago.',
+          seconds: 3,
+          emote: 'tired',
+        },
+        {
+          speaker: 'Auralith',
+          text: 'Echo Form is stable. Three things in this garden will answer to it now that would not before.',
+          seconds: 4.2,
+          emote: 'bright',
+        },
       ],
       cameraFocus: v(0, 3, -134),
       cameraDistance: 18,
@@ -2421,37 +2636,133 @@ export const FRACTURED_GARDEN: StageDef = {
      *  across, fallen on its side into the overlook plaza, gold sacred geometry
      *  still legible on the rim. Visible from the opening vista and again from
      *  the west flank, which is how the player measures how far they have come. */
-    { id: 'prp-fallen-resonator-ring', kind: 'fallen-resonator-ring', position: v(-9, 0, -8), yaw: 0.6, scale: 3.2 },
-    { id: 'prp-fallen-resonator-shard', kind: 'resonator-shard', position: v(9, 0, -6), yaw: -0.4, scale: 1.6 },
+    {
+      id: 'prp-fallen-resonator-ring',
+      kind: 'fallen-resonator-ring',
+      position: v(-9, 0, -8),
+      yaw: 0.6,
+      scale: 3.2,
+    },
+    {
+      id: 'prp-fallen-resonator-shard',
+      kind: 'resonator-shard',
+      position: v(9, 0, -6),
+      yaw: -0.4,
+      scale: 1.6,
+    },
 
     /** The great cascade and its two smaller siblings. All three run violet and
      *  silent while infected, clear and audible restored. */
     { id: 'prp-cascade-great', kind: 'waterfall', position: v(-48, 0, -88), yaw: 0, scale: 4.5 },
-    { id: 'prp-cascade-terrace', kind: 'waterfall', position: v(-30, 6, -84.5), yaw: 0, scale: 2.2 },
-    { id: 'prp-cascade-canopy', kind: 'waterfall', position: v(10, 13, -72), yaw: 3.1416, scale: 1.8 },
+    {
+      id: 'prp-cascade-terrace',
+      kind: 'waterfall',
+      position: v(-30, 6, -84.5),
+      yaw: 0,
+      scale: 2.2,
+    },
+    {
+      id: 'prp-cascade-canopy',
+      kind: 'waterfall',
+      position: v(10, 13, -72),
+      yaw: 3.1416,
+      scale: 1.8,
+    },
 
     /** Oru's amplifier spire — the thing the opening vista points at and the
      *  thing the whole stage walks toward. Sixty metres of black crystal grown
      *  up out of the arena's north rim. */
-    { id: 'prp-amplifier-spire', kind: 'amplifier-spire', position: v(0, 0, -200), yaw: 0, scale: 6 },
-    { id: 'prp-amplifier-spire-root-a', kind: 'infected-root-mass', position: v(-14, 0, -194), yaw: 1.1, scale: 3 },
-    { id: 'prp-amplifier-spire-root-b', kind: 'infected-root-mass', position: v(15, 0, -195), yaw: -0.9, scale: 2.6 },
+    {
+      id: 'prp-amplifier-spire',
+      kind: 'amplifier-spire',
+      position: v(0, 0, -200),
+      yaw: 0,
+      scale: 6,
+    },
+    {
+      id: 'prp-amplifier-spire-root-a',
+      kind: 'infected-root-mass',
+      position: v(-14, 0, -194),
+      yaw: 1.1,
+      scale: 3,
+    },
+    {
+      id: 'prp-amplifier-spire-root-b',
+      kind: 'infected-root-mass',
+      position: v(15, 0, -195),
+      yaw: -0.9,
+      scale: 2.6,
+    },
 
     /** Keeper stonework: gold-inlaid arches along the approach gallery, and
      *  the constellation discs the restored sky lines up with. */
     { id: 'prp-gallery-arch-a', kind: 'gold-arch', position: v(-1, 0, -198), yaw: 0, scale: 1.4 },
     { id: 'prp-gallery-arch-b', kind: 'gold-arch', position: v(-1, 0, -194), yaw: 0, scale: 1.4 },
     { id: 'prp-gallery-arch-c', kind: 'gold-arch', position: v(-1, 0, -190), yaw: 0, scale: 1.4 },
-    { id: 'prp-constellation-disc-north', kind: 'constellation-disc', position: v(0, 9, -187), yaw: 0, scale: 2.4 },
-    { id: 'prp-constellation-disc-overlook', kind: 'constellation-disc', position: v(0, 4, 9), yaw: 0, scale: 2 },
+    {
+      id: 'prp-constellation-disc-north',
+      kind: 'constellation-disc',
+      position: v(0, 9, -187),
+      yaw: 0,
+      scale: 2.4,
+    },
+    {
+      id: 'prp-constellation-disc-overlook',
+      kind: 'constellation-disc',
+      position: v(0, 4, 9),
+      yaw: 0,
+      scale: 2,
+    },
 
     /** Vegetation, healthy and otherwise. */
-    { id: 'prp-luminous-root-arch-a', kind: 'luminous-root-arch', position: v(0, -2.9, -60), yaw: 0, scale: 2 },
-    { id: 'prp-luminous-root-arch-b', kind: 'luminous-root-arch', position: v(-38, 12.9, -71), yaw: 0.2, scale: 2.4 },
-    { id: 'prp-infected-canopy-a', kind: 'infected-canopy', position: v(-20, 16, -80), yaw: 0.8, scale: 3 },
-    { id: 'prp-infected-canopy-b', kind: 'infected-canopy', position: v(12, 15, -100), yaw: -1.2, scale: 2.6 },
-    { id: 'prp-seedbed-husk', kind: 'seedbed-husk', position: v(22, 0, -100), yaw: 0.4, scale: 2.8 },
-    { id: 'prp-keeper-statue-basin', kind: 'keeper-statue', position: v(-30, -2.9, -94), yaw: 1.9, scale: 1.8 },
-    { id: 'prp-keeper-statue-vault', kind: 'keeper-statue', position: v(-53, 14, -33), yaw: 0, scale: 1.8 },
+    {
+      id: 'prp-luminous-root-arch-a',
+      kind: 'luminous-root-arch',
+      position: v(0, -2.9, -60),
+      yaw: 0,
+      scale: 2,
+    },
+    {
+      id: 'prp-luminous-root-arch-b',
+      kind: 'luminous-root-arch',
+      position: v(-38, 12.9, -71),
+      yaw: 0.2,
+      scale: 2.4,
+    },
+    {
+      id: 'prp-infected-canopy-a',
+      kind: 'infected-canopy',
+      position: v(-20, 16, -80),
+      yaw: 0.8,
+      scale: 3,
+    },
+    {
+      id: 'prp-infected-canopy-b',
+      kind: 'infected-canopy',
+      position: v(12, 15, -100),
+      yaw: -1.2,
+      scale: 2.6,
+    },
+    {
+      id: 'prp-seedbed-husk',
+      kind: 'seedbed-husk',
+      position: v(22, 0, -100),
+      yaw: 0.4,
+      scale: 2.8,
+    },
+    {
+      id: 'prp-keeper-statue-basin',
+      kind: 'keeper-statue',
+      position: v(-30, -2.9, -94),
+      yaw: 1.9,
+      scale: 1.8,
+    },
+    {
+      id: 'prp-keeper-statue-vault',
+      kind: 'keeper-statue',
+      position: v(-53, 14, -33),
+      yaw: 0,
+      scale: 1.8,
+    },
   ],
 };

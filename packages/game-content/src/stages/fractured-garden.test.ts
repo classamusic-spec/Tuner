@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GRAVITY, HARMONIC_RATIOS, RESONANCE_FORM_IDS, isResonanceFormId } from '@tuner/shared';
-import type { Vec3 } from '@tuner/shared';
+import type { ResonanceFormId, Vec3 } from '@tuner/shared';
 import type { GeometryDef, MovingPlatformDef, PlatformMotion, PuzzleDef } from '@tuner/game-core';
 import { ENEMY_ARCHETYPES } from '../enemies.js';
 import { BOSSES } from '../bosses.js';
@@ -42,7 +42,9 @@ const MAX_RISE = JUMP_RISE + DOUBLE_JUMP_RISE;
  * at running speed.
  */
 const doubleJumpAirtime =
-  Math.sqrt(2 * g * JUMP_RISE) / g + Math.sqrt(2 * g * DOUBLE_JUMP_RISE) / g + Math.sqrt((2 * MAX_RISE) / g);
+  Math.sqrt(2 * g * JUMP_RISE) / g +
+  Math.sqrt(2 * g * DOUBLE_JUMP_RISE) / g +
+  Math.sqrt((2 * MAX_RISE) / g);
 const MAX_HORIZONTAL_NO_DASH = RUN_SPEED * doubleJumpAirtime;
 
 /** A dash covers 4.08 m where running would have covered 1.46 m. */
@@ -188,10 +190,14 @@ describe('FRACTURED_GARDEN referential integrity', () => {
           }
           break;
         case 'cutscene':
-          expect(cutsceneIds.has(action.cutsceneId), `${trigger.id} → ${action.cutsceneId}`).toBe(true);
+          expect(cutsceneIds.has(action.cutsceneId), `${trigger.id} → ${action.cutsceneId}`).toBe(
+            true,
+          );
           break;
         case 'tutorial':
-          expect(tutorialIds.has(action.tutorialId), `${trigger.id} → ${action.tutorialId}`).toBe(true);
+          expect(tutorialIds.has(action.tutorialId), `${trigger.id} → ${action.tutorialId}`).toBe(
+            true,
+          );
           break;
         case 'objective':
           expect(action.text.length).toBeGreaterThan(0);
@@ -241,7 +247,9 @@ describe('FRACTURED_GARDEN referential integrity', () => {
       }
     }
     for (const resonator of stage.resonators) {
-      expect(puzzleIds.has(resonator.puzzleId), `${resonator.id} → ${resonator.puzzleId}`).toBe(true);
+      expect(puzzleIds.has(resonator.puzzleId), `${resonator.id} → ${resonator.puzzleId}`).toBe(
+        true,
+      );
     }
   });
 
@@ -267,7 +275,9 @@ describe('FRACTURED_GARDEN referential integrity', () => {
   it('opens every flag-gated door with a flag something can actually raise', () => {
     for (const door of stage.doors) {
       if (door.openedByFlag !== undefined) {
-        expect(producedFlags.has(door.openedByFlag), `${door.id} ← ${door.openedByFlag}`).toBe(true);
+        expect(producedFlags.has(door.openedByFlag), `${door.id} ← ${door.openedByFlag}`).toBe(
+          true,
+        );
       }
     }
     // Every door is opened either by a flag or by a puzzle naming it directly.
@@ -277,7 +287,10 @@ describe('FRACTURED_GARDEN referential integrity', () => {
         .map((puzzle) => (puzzle.reward.kind === 'openDoor' ? puzzle.reward.doorId : '')),
     );
     for (const door of stage.doors) {
-      expect(door.openedByFlag !== undefined || puzzleOpenedDoors.has(door.id), `${door.id} is unopenable`).toBe(true);
+      expect(
+        door.openedByFlag !== undefined || puzzleOpenedDoors.has(door.id),
+        `${door.id} is unopenable`,
+      ).toBe(true);
     }
   });
 
@@ -301,7 +314,7 @@ describe('FRACTURED_GARDEN referential integrity', () => {
       ...stage.rails.map((entry) => entry.requiresForm),
       ...stage.pickups.map((entry) => entry.requiresForm),
       ...stage.resonators.map((entry) => entry.requiresForm),
-    ].filter((form): form is string => form !== undefined);
+    ].filter((form): form is ResonanceFormId => form !== undefined);
     expect(forms.length).toBeGreaterThan(0);
     for (const form of forms) {
       expect(isResonanceFormId(form), form).toBe(true);
@@ -342,7 +355,9 @@ describe('FRACTURED_GARDEN secrets', () => {
   it('locks at least one secret behind a form from a later region', () => {
     const laterForms = secrets
       .map((pickup) => pickup.requiresForm)
-      .filter((form): form is string => form !== undefined && form !== 'echo' && form !== 'base');
+      .filter(
+        (form): form is ResonanceFormId => form !== undefined && form !== 'echo' && form !== 'base',
+      );
     expect(laterForms.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -404,7 +419,9 @@ describe('FRACTURED_GARDEN mechanics', () => {
   });
 
   it('uses all five platform motion kinds', () => {
-    const kinds = new Set<PlatformMotion['kind']>(stage.movingPlatforms.map((platform) => platform.motion.kind));
+    const kinds = new Set<PlatformMotion['kind']>(
+      stage.movingPlatforms.map((platform) => platform.motion.kind),
+    );
     for (const kind of ['linear', 'orbit', 'vertical', 'rhythm', 'collapse'] as const) {
       expect(kinds.has(kind), `missing motion kind: ${kind}`).toBe(true);
     }
@@ -418,7 +435,9 @@ describe('FRACTURED_GARDEN mechanics', () => {
       expect(lift.motion.kind).toBe('vertical');
     }
 
-    const collapsing = stage.movingPlatforms.filter((platform) => platform.motion.kind === 'collapse');
+    const collapsing = stage.movingPlatforms.filter(
+      (platform) => platform.motion.kind === 'collapse',
+    );
     expect(collapsing.length).toBeGreaterThanOrEqual(4);
     for (const slab of collapsing) {
       if (slab.motion.kind !== 'collapse') continue;
@@ -526,7 +545,12 @@ describe('FRACTURED_GARDEN population', () => {
 
   it('fields the families the stage brief names', () => {
     const archetypes = new Set(stage.enemies.map((spawn) => spawn.archetype));
-    for (const required of ['whisperer', 'spore-drifter', 'root-fracture', 'infected-garden-guardian']) {
+    for (const required of [
+      'whisperer',
+      'spore-drifter',
+      'root-fracture',
+      'infected-garden-guardian',
+    ]) {
       expect(archetypes.has(required), required).toBe(true);
     }
   });
@@ -703,8 +727,12 @@ describe('FRACTURED_GARDEN checkpoints', () => {
     if (arena === undefined) return;
 
     const arenaProgress = progressAlong(arena);
-    const before = byOrder.filter((checkpoint) => progressAlong(checkpoint.position) < arenaProgress);
-    const after = byOrder.filter((checkpoint) => progressAlong(checkpoint.position) > arenaProgress);
+    const before = byOrder.filter(
+      (checkpoint) => progressAlong(checkpoint.position) < arenaProgress,
+    );
+    const after = byOrder.filter(
+      (checkpoint) => progressAlong(checkpoint.position) > arenaProgress,
+    );
 
     expect(before.length, 'no checkpoint before the mini-boss').toBeGreaterThanOrEqual(1);
     expect(after.length, 'no checkpoint after the mini-boss').toBeGreaterThanOrEqual(1);
@@ -730,7 +758,9 @@ describe('FRACTURED_GARDEN checkpoints', () => {
     if (commanderTrigger === undefined) return;
 
     const gateProgress = progressAlong(commanderTrigger.position);
-    const before = byOrder.filter((checkpoint) => progressAlong(checkpoint.position) < gateProgress);
+    const before = byOrder.filter(
+      (checkpoint) => progressAlong(checkpoint.position) < gateProgress,
+    );
     expect(before.length).toBeGreaterThanOrEqual(1);
 
     const last = before[before.length - 1];
@@ -771,7 +801,9 @@ describe('FRACTURED_GARDEN world bounds', () => {
     const surfaces = [...stage.geometry, ...stage.movingPlatforms];
     expect(surfaces.length).toBeGreaterThan(0);
     for (const surface of surfaces) {
-      expect(lowestPoint(surface), `${surface.id} is at or below the kill plane`).toBeGreaterThan(stage.killPlaneY);
+      expect(lowestPoint(surface), `${surface.id} is at or below the kill plane`).toBeGreaterThan(
+        stage.killPlaneY,
+      );
     }
   });
 
@@ -817,7 +849,10 @@ describe('FRACTURED_GARDEN jump reachability', () => {
     const rise = pair.to.y - pair.from.y;
 
     if (rise > MAX_RISE) {
-      return { ok: false, reason: `rise ${rise.toFixed(2)} m exceeds the ${MAX_RISE.toFixed(2)} m double jump` };
+      return {
+        ok: false,
+        reason: `rise ${rise.toFixed(2)} m exceeds the ${MAX_RISE.toFixed(2)} m double jump`,
+      };
     }
     if (horizontal > MAX_HORIZONTAL) {
       return {
@@ -859,7 +894,9 @@ describe('FRACTURED_GARDEN jump reachability', () => {
   it('holds the authored safety margin on every crossing', () => {
     for (const pair of FRACTURED_GARDEN_TRAVERSALS) {
       const horizontal = horizontalDistance(pair.from, pair.to);
-      expect(horizontal, `${pair.id} leaves no margin`).toBeLessThanOrEqual(MAX_HORIZONTAL * SAFETY_MARGIN);
+      expect(horizontal, `${pair.id} leaves no margin`).toBeLessThanOrEqual(
+        MAX_HORIZONTAL * SAFETY_MARGIN,
+      );
       const rise = pair.to.y - pair.from.y;
       expect(rise, `${pair.id} leaves no vertical margin`).toBeLessThanOrEqual(MAX_RISE - 0.5);
     }

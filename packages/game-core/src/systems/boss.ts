@@ -281,6 +281,23 @@ export function submitRestorationNote(world: MutableWorld, degree: number): bool
   return true;
 }
 
+/**
+ * Copies `restorationSequence` into the boss's scratch.
+ *
+ * Kept separate from {@link beginRestoration} because a stage trigger may flip
+ * `restoring` itself — `TriggerDef` has a `phase: 'restoration'` action — and
+ * the sequence has to be there whichever route the fight took, or
+ * {@link submitRestorationNote} would have nothing to check against.
+ */
+function seedRestorationSequence(boss: MutableBoss, def: BossDef): void {
+  const sequence = def.restorationSequence ?? [];
+  boss.scratch.set(KEY_SEQUENCE_LENGTH, sequence.length);
+  for (let i = 0; i < sequence.length; i++) {
+    boss.scratch.set(KEY_SEQUENCE_PREFIX + String(i), sequence[i] ?? 0);
+  }
+  boss.scratch.set(KEY_ANNOUNCED_STEP, boss.restorationStep);
+}
+
 function beginRestoration(ctx: SimContext, boss: MutableBoss, def: BossDef): void {
   boss.health = 0;
   cancelAttack(ctx, boss);
@@ -289,13 +306,7 @@ function beginRestoration(ctx: SimContext, boss: MutableBoss, def: BossDef): voi
   boss.restorationStep = 0;
   boss.restorationProgress = 0;
   set(boss.velocity, 0, 0, 0);
-
-  const sequence = def.restorationSequence ?? [];
-  boss.scratch.set(KEY_SEQUENCE_LENGTH, sequence.length);
-  for (let i = 0; i < sequence.length; i++) {
-    boss.scratch.set(KEY_SEQUENCE_PREFIX + String(i), sequence[i] ?? 0);
-  }
-  boss.scratch.set(KEY_ANNOUNCED_STEP, 0);
+  seedRestorationSequence(boss, def);
 
   ctx.events.emit('boss:restorationStarted', { definitionId: boss.definitionId });
   ctx.services.requestShake(BOSS_RESTORATION_SHAKE_MAGNITUDE, BOSS_RESTORATION_SHAKE_SECONDS);
@@ -303,7 +314,7 @@ function beginRestoration(ctx: SimContext, boss: MutableBoss, def: BossDef): voi
   // A boss with no authored sequence — every mini-boss, and any Commander
   // still being blocked out — has nothing to play back, so it resolves at
   // once rather than standing there waiting for a note that cannot come.
-  if (sequence.length === 0) completeRestoration(ctx, boss, def);
+  if ((boss.scratch.get(KEY_SEQUENCE_LENGTH) ?? 0) === 0) completeRestoration(ctx, boss, def);
 }
 
 function completeRestoration(ctx: SimContext, boss: MutableBoss, def: BossDef): void {
@@ -324,6 +335,9 @@ function completeRestoration(ctx: SimContext, boss: MutableBoss, def: BossDef): 
 }
 
 function updateRestoration(ctx: SimContext, boss: MutableBoss, def: BossDef): void {
+  // Adopt a retuning another system started, so a scripted route into the
+  // restoration phase behaves exactly like reaching zero health.
+  if (!boss.scratch.has(KEY_SEQUENCE_LENGTH)) seedRestorationSequence(boss, def);
   const total = boss.scratch.get(KEY_SEQUENCE_LENGTH) ?? 0;
 
   // Announce accepted notes exactly once each, so audio and the on-screen
@@ -360,9 +374,14 @@ function enterPhase(
   boss.phaseIndex = phase.index;
   boss.phaseTime = 0;
 
+  // Into the world so triggers, doors and geometry react, and onto the boss so
+  // the stage runtime can tell which flags this encounter is responsible for.
   const flags = phase.arenaFlags;
   if (flags !== undefined) {
-    for (const flag of flags) ctx.world.stage.flags.add(flag);
+    for (const flag of flags) {
+      ctx.world.stage.flags.add(flag);
+      boss.arenaFlags.add(flag);
+    }
   }
 
   // Resetting selection is part of the transition: the new phase gets a clean
