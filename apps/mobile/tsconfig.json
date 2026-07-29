@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist-types",
+    "noEmit": false,
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
+    "moduleResolution": "Bundler",
+    "types": []
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/physics" },
+    { "path": "../../packages/input" },
+    { "path": "../../packages/audio" },
+    { "path": "../../packages/game-core" },
+    { "path": "../../packages/game-content" },
+    { "path": "../../packages/platform" },
+    { "path": "../../packages/persistence" }
+  ]
+}

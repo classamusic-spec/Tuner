@@ -1,0 +1,137 @@
+/*
+ * Host-level styling only. Everything inside the game's interface is styled by
+ * @tuner/ui with plain style objects, so this file stays small: it owns the
+ * page shell, the canvas, and the rules that make a browser behave like a game
+ * client rather than a document viewer.
+ */
+
+:root {
+  --tuner-abyss: #0b1030;
+  --tuner-ink: #f2f5ff;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--tuner-abyss);
+  color: var(--tuner-ink);
+}
+
+body {
+  font-family:
+    'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  /* A game canvas must not scroll, rubber-band, or select text under a thumb. */
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+canvas {
+  display: block;
+  outline: none;
+  touch-action: none;
+}
+
+#root {
+  position: relative;
+  /* Respect notches and home indicators on phones held in landscape. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Keyboard focus must always be visible; pointer focus should not flash rings. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid #f5c451;
+  outline-offset: 2px;
+}
+
+/* The boot screen shown before the renderer mounts. */
+.tuner-boot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  background: radial-gradient(circle at 50% 45%, #131a44 0%, #0b1030 70%);
+  text-align: center;
+  padding: 2rem;
+}
+
+.tuner-boot__title {
+  font-size: clamp(1.6rem, 5vw, 2.6rem);
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  font-weight: 300;
+  margin: 0;
+  color: #f5c451;
+}
+
+.tuner-boot__subtitle {
+  margin: 0;
+  font-size: clamp(0.75rem, 2.5vw, 0.95rem);
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  color: #9aa4d4;
+  text-transform: uppercase;
+}
+
+.tuner-boot__status {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #9aa4d4;
+  min-height: 1.2em;
+}
+
+.tuner-boot__ring {
+  width: 84px;
+  height: 84px;
+  animation: tuner-spin 3.2s linear infinite;
+}
+
+@keyframes tuner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tuner-error {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+  border: 1px solid #ff6b5c;
+  border-radius: 12px;
+  background: #131a44;
+  text-align: left;
+}
+
+.tuner-error pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.8rem;
+  color: #9aa4d4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tuner-boot__ring {
+    animation: none;
+  }
+}

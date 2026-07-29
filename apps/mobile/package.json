@@ -1,0 +1,34 @@
+{
+  "name": "@tuner/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "prebuild": "expo prebuild",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@tuner/audio": "workspace:*",
+    "@tuner/game-content": "workspace:*",
+    "@tuner/game-core": "workspace:*",
+    "@tuner/input": "workspace:*",
+    "@tuner/persistence": "workspace:*",
+    "@tuner/physics": "workspace:*",
+    "@tuner/platform": "workspace:*",
+    "@tuner/shared": "workspace:*",
+    "expo": "57.0.8",
+    "expo-av": "16.0.7",
+    "expo-gl": "57.0.2",
+    "expo-haptics": "15.0.7",
+    "expo-status-bar": "3.0.8",
+    "react": "19.2.8",
+    "react-native": "0.86.2",
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17"
+  }
+}

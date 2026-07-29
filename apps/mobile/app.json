@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "TUNER: Resonance Breaker",
+    "slug": "tuner-resonance-breaker",
+    "version": "0.1.0",
+    "orientation": "landscape",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0b1030",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.classamusic.tuner",
+      "requireFullScreen": true
+    },
+    "android": {
+      "package": "com.classamusic.tuner",
+      "adaptiveIcon": {
+        "backgroundColor": "#0b1030"
+      }
+    },
+    "plugins": ["expo-gl"],
+    "experiments": {
+      "tsconfigPaths": true
+    }
+  }
+}
