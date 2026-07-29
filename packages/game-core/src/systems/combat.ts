@@ -12,7 +12,6 @@ import type { DamageKind, Vec3 } from '@tuner/shared';
 import type { SimContext, System } from '../internal/context.js';
 import type { MutableEnemy, MutableProjectile } from '../internal/world.js';
 import {
-  MUZZLE_HEIGHT_RATIO,
   canStrikeResonator,
   damageBoss,
   enemyCentreInto,
