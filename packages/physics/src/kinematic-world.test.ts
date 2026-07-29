@@ -216,6 +216,55 @@ describe('moveCharacter: walls', () => {
     expect(out.result.touchingWall).toBe(true);
   });
 
+  it('does not tunnel through thin geometry at extreme speed', () => {
+    const world = createKinematicWorld();
+    addFloor(world, 0);
+    // A 4 cm thick wall, crossed by 3.7 m of motion per step.
+    world.addCollider({
+      shape: { kind: 'box', halfExtents: vec3(0.02, 3, 12) },
+      position: vec3(5, 3, 0),
+      layer: Layer.Terrain,
+    });
+    const out = simulate(world, vec3(0, HALF_BODY, 0), {
+      steps: 20,
+      move: () => ({ x: 220, z: 0 }),
+    });
+    expect(out.position.x).toBeCloseTo(4.98 - RADIUS, 3);
+    expect(out.result.touchingWall).toBe(true);
+  });
+
+  it('settles in an inside corner without jitter', () => {
+    const world = createKinematicWorld();
+    addFloor(world, 0);
+    world.addCollider({
+      shape: { kind: 'box', halfExtents: vec3(0.5, 3, 12) },
+      position: vec3(2.5, 3, 0),
+      layer: Layer.Terrain,
+    });
+    world.addCollider({
+      shape: { kind: 'box', halfExtents: vec3(12, 3, 0.5) },
+      position: vec3(0, 3, 2.5),
+      layer: Layer.Terrain,
+    });
+    let previous: Vec3 | null = null;
+    let lastDelta = Number.POSITIVE_INFINITY;
+    const out = simulate(world, vec3(0, HALF_BODY, 0), {
+      steps: 120,
+      move: () => ({ x: 8, z: 8 }),
+      onStep: (_step, position) => {
+        if (previous !== null) {
+          lastDelta = Math.hypot(position.x - previous.x, position.z - previous.z);
+        }
+        previous = vec3(position.x, position.y, position.z);
+      },
+    });
+    expect(out.position.x).toBeCloseTo(2 - RADIUS, 3);
+    expect(out.position.z).toBeCloseTo(2 - RADIUS, 3);
+    expect(out.position.y).toBeCloseTo(HALF_BODY, 4);
+    // Wedged against both walls: fully at rest, not oscillating.
+    expect(lastDelta).toBeLessThan(1e-6);
+  });
+
   it('slides along a yaw-rotated wall', () => {
     const world = createKinematicWorld();
     addFloor(world, 0);
