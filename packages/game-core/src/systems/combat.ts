@@ -469,7 +469,7 @@ function spawnShot(
 
 function firePulse(ctx: SimContext): void {
   const combat = ctx.combat;
-  ctx.world.player.fireCooldown = combat.pulseInterval;
+  ctx.world.player.fireCooldown = 0;
   spawnShot(
     ctx,
     combat.pulseDamage,
