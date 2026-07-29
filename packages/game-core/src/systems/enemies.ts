@@ -362,14 +362,32 @@ function setPhase(enemy: MutableEnemy, phase: EnemyPhase): void {
   enemy.phaseTime = 0;
 }
 
-/** True when the player is close enough — and level enough — to be struck. */
-export function inAttackRange(ctx: SimContext, enemy: MutableEnemy, def: EnemyArchetypeDef): boolean {
+/**
+ * True when the player is close enough — and level enough — to be struck.
+ *
+ * `reach` defaults to the archetype's `attackRadius`, but a role may pass a
+ * narrower one: an elite's staff-swing must not reach as far as its volley.
+ */
+export function inAttackRange(
+  ctx: SimContext,
+  enemy: MutableEnemy,
+  def: EnemyArchetypeDef,
+  reach = def.attackRadius,
+): boolean {
   const player = ctx.world.player;
-  if (distanceXZ(enemy.position, player.position) > def.attackRadius) return false;
+  if (distanceXZ(enemy.position, player.position) > reach) return false;
   const selfCentre = enemy.position.y + def.bodyHeight * 0.5;
   const playerCentre = player.position.y + ctx.movement.bodyHeight * 0.5;
-  const reach = (def.bodyHeight + ctx.movement.bodyHeight) * 0.5 + ATTACK_VERTICAL_SLACK;
-  return Math.abs(selfCentre - playerCentre) <= reach;
+  const vertical = (def.bodyHeight + ctx.movement.bodyHeight) * 0.5 + ATTACK_VERTICAL_SLACK;
+  return Math.abs(selfCentre - playerCentre) <= vertical;
+}
+
+/** The reach an elite's closing pattern strikes at. */
+function eliteMeleeReach(ctx: SimContext, def: EnemyArchetypeDef): number {
+  return Math.max(
+    def.bodyRadius + ctx.movement.bodyRadius + ELITE_MELEE_LUNGE,
+    def.attackRadius * ELITE_MELEE_RANGE_SCALE,
+  );
 }
 
 /** True when the enemy may start a new wind-up this step. */
@@ -396,11 +414,13 @@ function beginTelegraph(
   memory: EnemyMemory,
   attack: PendingAttack,
   scale = 1,
+  reach = def.attackRadius,
 ): void {
   const seconds = Math.max(MIN_TELEGRAPH_SECONDS, telegraphSecondsFor(def, ctx) * scale);
   enemy.telegraphTotal = seconds;
   enemy.telegraphRemaining = seconds;
   memory.pendingAttack = attack;
+  memory.attackReach = reach;
   setPhase(enemy, 'attack');
 }
 
@@ -571,17 +591,18 @@ function releaseAttack(
 
   const cooldown = attackCooldownSecondsFor(def, ctx);
   const source = `enemy:${def.id}`;
+  const reach = memory.attackReach > 0 ? memory.attackReach : def.attackRadius;
 
   switch (kind) {
     case 'melee': {
-      if (inAttackRange(ctx, enemy, def)) {
+      if (inAttackRange(ctx, enemy, def, reach)) {
         ctx.services.damagePlayer(def.contactDamage, source, enemy.position);
       }
       enemy.attackCooldown = cooldown;
       break;
     }
     case 'heavy': {
-      if (inAttackRange(ctx, enemy, def)) {
+      if (inAttackRange(ctx, enemy, def, reach)) {
         ctx.services.damagePlayer(def.contactDamage * HEAVY_DAMAGE_SCALE, source, enemy.position);
       }
       ctx.services.requestShake(HEAVY_SHAKE_MAGNITUDE, HEAVY_SHAKE_SECONDS);
@@ -1254,12 +1275,13 @@ function updateElite(
 
   // Closing stance — and the fallback for an elite with no ranged option at
   // all, which then alternates quick strikes with a heavy slam instead.
-  steerInto(out, enemy.position, player.position, def.moveSpeed, def.attackRadius * 0.6);
-  if (!canBeginAttack(enemy) || !inAttackRange(ctx, enemy, def)) return;
+  const reach = eliteMeleeReach(ctx, def);
+  steerInto(out, enemy.position, player.position, def.moveSpeed, reach * 0.7);
+  if (!canBeginAttack(enemy) || !inAttackRange(ctx, enemy, def, reach)) return;
   set(out, 0, 0, 0);
   const last = memory.patternCount >= ELITE_ATTACKS_PER_PATTERN - 1;
   const heavy = ranged || last;
-  beginTelegraph(ctx, enemy, def, memory, heavy ? 'heavy' : 'melee', heavy ? 1.2 : 1);
+  beginTelegraph(ctx, enemy, def, memory, heavy ? 'heavy' : 'melee', heavy ? 1.2 : 1, reach);
 }
 
 function runRole(
