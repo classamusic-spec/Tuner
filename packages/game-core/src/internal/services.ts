@@ -1,4 +1,4 @@
-import { DEG2RAD, WORLD_CHORD_HZ, clamp, clone, set, vec3 } from '@tuner/shared';
+import { DEG2RAD, WORLD_CHORD_HZ, clamp, clone, harmonicHz, set, vec3 } from '@tuner/shared';
 import type {
   DamageKind,
   DifficultyProfile,
@@ -20,6 +20,7 @@ import type {
   MutableBoss,
   MutableEnemy,
   MutableProjectile,
+  MutableResonator,
   MutableWorld,
 } from './world.js';
 
@@ -69,6 +70,15 @@ export const BOSS_VULNERABLE_DAMAGE_SCALE = 1.5;
 /** Screen shake requested when the player is hurt. */
 export const HURT_SHAKE_MAGNITUDE = 0.45;
 export const HURT_SHAKE_SECONDS = 0.22;
+
+/**
+ * Height of the Auralith ring above the player's feet, as a fraction of the
+ * body height. Shots leave from here, aim cones start here, and the counter
+ * reach is measured from here — using the feet instead would make every shot
+ * pass under a short enemy and make the counter's forward test wrong the
+ * moment the player looked up.
+ */
+export const MUZZLE_HEIGHT_RATIO = 0.7;
 
 const NO_BREAKERS: readonly DamageKind[] = [];
 
@@ -135,6 +145,47 @@ export function bossCentreInto(
 
 export function bossRadiusOf(content: ContentBundle, boss: MutableBoss): number {
   return content.bosses[boss.definitionId]?.bodyRadius ?? DEFAULT_ENEMY_BODY_RADIUS;
+}
+
+/** The point shots leave from, and that aim and counter reach are measured from. */
+export function muzzleInto(target: Vec3, ctx: SimContext): Vec3 {
+  const position = ctx.world.player.position;
+  return set(
+    target,
+    position.x,
+    position.y + ctx.movement.bodyHeight * MUZZLE_HEIGHT_RATIO,
+    position.z,
+  );
+}
+
+/** True when the player's current form may ring this resonator. */
+export function canStrikeResonator(
+  resonator: MutableResonator,
+  form: ResonanceFormId,
+): boolean {
+  if (resonator.locked) return false;
+  if (resonator.requiresForm !== null && resonator.requiresForm !== form) return false;
+  return true;
+}
+
+/**
+ * Rings a resonator.
+ *
+ * Puzzle progress belongs to the stage system, so this only *announces* the
+ * strike — with the degree, the frequency and a world position, so the audio
+ * engine can sound the note and the renderer can draw it. A player with the
+ * sound off still sees which note was struck.
+ */
+export function strikeResonator(
+  events: EventBus<GameEvents>,
+  resonator: MutableResonator,
+): void {
+  events.emit('puzzle:noteStruck', {
+    puzzleId: resonator.puzzleId,
+    degree: resonator.degree,
+    hz: harmonicHz(resonator.degree),
+    position: clone(resonator.position),
+  });
 }
 
 /**
