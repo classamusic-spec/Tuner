@@ -8,8 +8,19 @@
   "exports": {
     ".": "./src/index.ts"
   },
-  "dependencies": {"@tuner/shared":"workspace:*","@tuner/game-core":"workspace:*","@tuner/input":"workspace:*","@tuner/audio":"workspace:*","@tuner/persistence":"workspace:*","react":"19.2.8","zustand":"5.0.14"},
+  "dependencies": {
+    "@tuner/shared": "workspace:*",
+    "@tuner/game-core": "workspace:*",
+    "@tuner/input": "workspace:*",
+    "@tuner/audio": "workspace:*",
+    "@tuner/persistence": "workspace:*",
+    "react": "19.2.8",
+    "zustand": "5.0.14"
+  },
   "scripts": {
     "typecheck": "tsc -b"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17"
   }
 }

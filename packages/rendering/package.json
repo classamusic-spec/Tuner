@@ -8,8 +8,21 @@
   "exports": {
     ".": "./src/index.ts"
   },
-  "dependencies": {"@tuner/shared":"workspace:*","@tuner/game-core":"workspace:*","@tuner/physics":"workspace:*","@tuner/platform":"workspace:*","three":"0.185.1","@react-three/fiber":"9.6.1","@react-three/drei":"10.7.7","react":"19.2.8"},
+  "dependencies": {
+    "@tuner/shared": "workspace:*",
+    "@tuner/game-core": "workspace:*",
+    "@tuner/physics": "workspace:*",
+    "@tuner/platform": "workspace:*",
+    "three": "0.185.1",
+    "@react-three/fiber": "9.6.1",
+    "@react-three/drei": "10.7.7",
+    "react": "19.2.8"
+  },
   "scripts": {
     "typecheck": "tsc -b"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "@types/three": "0.185.1"
   }
 }

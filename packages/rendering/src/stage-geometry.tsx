@@ -412,7 +412,9 @@ export function evaluatePlatformPosition(
 
 /** Whether a rhythmic hazard is live this instant. */
 export function evaluateHazardActive(
-  rhythm: HazardDef['rhythm'],
+  // Accepts null as well as undefined: the instance source stores "no rhythm"
+  // as null, and normalising here is cheaper than at every call site.
+  rhythm: HazardDef['rhythm'] | null,
   elapsedSeconds: number,
   bpm: number,
 ): boolean {
