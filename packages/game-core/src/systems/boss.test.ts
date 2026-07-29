@@ -971,6 +971,33 @@ describe('bossSystem — restoration', () => {
     expect(submitRestorationNote(h.world, 0)).toBe(false);
   });
 
+  it('settles every crossed threshold before the killing blow resolves', () => {
+    const h = createHarness();
+    h.step(1);
+    h.boss.health = 0; // full health to nothing in one step
+    h.step(1);
+
+    expect(h.captured.phaseChanged.map((e) => e.payload.phaseIndex)).toEqual([1, 2, 3]);
+    expect(h.world.stage.flags.has('phase-three-flag')).toBe(true);
+    expect(h.boss.restoring).toBe(true);
+  });
+
+  it('adopts a retuning another system started', () => {
+    const h = createHarness();
+    h.step(1);
+    // A stage trigger flipping the boss into the restoration phase itself,
+    // without going through zero health.
+    h.boss.restoring = true;
+    h.step(1);
+
+    expect(submitRestorationNote(h.world, 4)).toBe(false);
+    expect(submitRestorationNote(h.world, 0)).toBe(true);
+    expect(h.boss.restorationProgress).toBeCloseTo(0.25, 6);
+    for (const degree of [4, 2, 7]) expect(submitRestorationNote(h.world, degree)).toBe(true);
+    h.step(1);
+    expect(h.boss.defeated).toBe(true);
+  });
+
   it('resolves a boss that has no sequence to play back', () => {
     const h = createHarness({ def: MINI_BOSS });
     h.step(1);

@@ -707,6 +707,10 @@ function perceive(
     memory.sightGrace = SIGHT_MEMORY_SECONDS;
     memory.returningHome = false;
     copy(memory.lastSeen, player.position);
+    // Sampling a form is perception, not an action, so a Mimic re-copies even
+    // mid-wind-up: switching form while it is winding up changes what comes
+    // back at you, which is the whole conversation the fight is built on.
+    if (def.role === 'mimic') enemy.mimickedForm = player.form;
     if (firstSight && def.role === 'scout') {
       raiseAlarm(ctx, enemy, SCOUT_ALERT_RADIUS);
     }
@@ -1130,7 +1134,6 @@ function updatePursuer(
   out: Vec3,
 ): void {
   if (enemy.targetId === null) {
-    memory.headingInit = false;
     updateUnaware(out, enemy, def, memory, dt);
     return;
   }
@@ -1139,16 +1142,14 @@ function updatePursuer(
   const dx = scratchChase.x - enemy.position.x;
   const dz = scratchChase.z - enemy.position.z;
   const wanted = dx * dx + dz * dz < 1e-8 ? enemy.yaw : yawForDirection(dx, dz);
-  if (!memory.headingInit) {
-    memory.heading = enemy.yaw;
-    memory.headingInit = true;
-  }
-  // The cap is the whole design: a pursuer that snapped to face the player
-  // would be unavoidable, and unavoidable is not the same as threatening.
-  memory.heading = moveTowardsAngle(memory.heading, wanted, def.turnSpeed * dt);
-  enemy.yaw = memory.heading;
+  // A pursuer's facing *is* its heading — it runs where it looks, and it looks
+  // no faster than `turnSpeed`. That cap is the whole design: a unit that
+  // snapped to face the player would be unavoidable, and unavoidable is not the
+  // same as threatening. Keeping heading and yaw as one value means the cap
+  // also holds through a wind-up, with no way to bank free rotation.
+  enemy.yaw = moveTowardsAngle(enemy.yaw, wanted, def.turnSpeed * dt);
 
-  forwardInto(scratchSteer, memory.heading);
+  forwardInto(scratchSteer, enemy.yaw);
   set(out, scratchSteer.x * def.moveSpeed, 0, scratchSteer.z * def.moveSpeed);
 
   if (canBeginAttack(enemy) && inAttackRange(ctx, enemy, def)) {
@@ -1218,11 +1219,6 @@ function updateMimic(
     updateUnaware(out, enemy, def, memory, dt);
     return;
   }
-
-  // Sampling is continuous, so switching form mid-fight changes what comes
-  // back at you on the very next shot.
-  const form = ctx.world.player.form;
-  if (enemy.mimickedForm !== form) enemy.mimickedForm = form;
 
   const standoff =
     def.projectile === undefined ? def.attackRadius * 0.5 : def.attackRadius * MIMIC_STANDOFF;

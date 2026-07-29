@@ -351,7 +351,9 @@ function updateRestoration(ctx: SimContext, boss: MutableBoss, def: BossDef): vo
     });
   }
 
-  if (total > 0 && boss.restorationStep >= total) completeRestoration(ctx, boss, def);
+  // `>=` rather than `>` so an adopted retuning with nothing to play back
+  // resolves instead of leaving the boss kneeling forever.
+  if (boss.restorationStep >= total) completeRestoration(ctx, boss, def);
 }
 
 // ---------------------------------------------------------------------------
@@ -836,6 +838,11 @@ export const bossSystem: System = (ctx: SimContext): void => {
     return;
   }
 
+  // Thresholds are settled before the killing blow is resolved: a burst big
+  // enough to end the fight still crossed every phase, and the arena the
+  // retuning is played in has to be the one those flags describe.
+  advancePhases(ctx, boss, def);
+
   // Zero health is not death: the Amplifier ruptures and the boss kneels.
   if (boss.health <= 0) {
     beginRestoration(ctx, boss, def);
@@ -843,7 +850,6 @@ export const bossSystem: System = (ctx: SimContext): void => {
     return;
   }
 
-  advancePhases(ctx, boss, def);
   const phase = currentPhaseOf(def, boss);
   if (phase === null) return;
 

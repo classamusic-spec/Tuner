@@ -518,9 +518,10 @@ interface HarnessOptions {
   seed?: number;
 }
 
-let nextEnemyId = 500;
-
 function createHarness(options: HarnessOptions = {}): Harness {
+  // Per-harness, so two harnesses built the same way mint the same ids and a
+  // determinism comparison is not defeated by a shared counter.
+  let nextEnemyId = 500;
   const world = createTestWorld();
   const physics = createStubPhysics(options.physics);
   const events = createEventBus<GameEvents>();
@@ -924,10 +925,22 @@ describe('role: pursuer', () => {
     expect(Math.abs(pursuer.yaw)).toBeLessThanOrEqual(perStep + 1e-9);
     // Still committed to its old heading, so it is running away this step.
     expect(pursuer.velocity.z).toBeLessThan(0);
+  });
 
-    // Given time it does come around — relentless, just not instant.
-    h.step(240);
-    expect(pursuer.velocity.z).toBeGreaterThan(0);
+  it('still runs the player down once it has come around', () => {
+    const h = createHarness();
+    const pursuer = h.addEnemy('pursuer', vec3(0, 0, 0), { yaw: 0 });
+    h.player.position.z = 10;
+
+    let cameAround = false;
+    let closest = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < 600; i++) {
+      h.step();
+      if (pursuer.velocity.z > 0) cameAround = true;
+      closest = Math.min(closest, distanceXZ(pursuer.position, h.player.position));
+    }
+    expect(cameAround).toBe(true);
+    expect(closest).toBeLessThan(defOf('pursuer').attackRadius + 1);
   });
 });
 
@@ -987,10 +1000,15 @@ describe('role: hazard', () => {
     });
     h.player.position.z = 400;
 
-    h.step(150);
-    expect(hazard.position.x).toBeGreaterThan(3);
-    h.step(180);
-    expect(hazard.position.x).toBeLessThan(2);
+    let furthest = 0;
+    for (let i = 0; i < 120; i++) {
+      h.step();
+      furthest = Math.max(furthest, hazard.position.x);
+    }
+    expect(furthest).toBeGreaterThan(3);
+
+    h.step(60);
+    expect(hazard.position.x).toBeLessThan(furthest - 0.5);
   });
 });
 
