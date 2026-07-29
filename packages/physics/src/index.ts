@@ -7,3 +7,5 @@
  * kinematic geometry rather than by an impulse solver.
  */
 export * from './types.js';
+export * from './shapes.js';
+export * from './kinematic-world.js';

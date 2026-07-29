@@ -91,18 +91,37 @@ export function createGameCore(config: GameCoreConfig): GameCore {
    */
   const nowMs = config.clock ?? ((): number => 0);
 
+  /**
+   * Services are built once, but several of their inputs change during play:
+   * the settings screen can retune combat and accessibility, difficulty can be
+   * switched, a stage can be loaded, and the equipped form changes every time
+   * the player spins the wheel. Passing plain values would freeze all of that
+   * at construction, so the dependency object exposes live getters instead.
+   */
   const services = createSimServices({
     world,
     physics,
     events,
     ids,
     rng,
-    getCombat: () => combat,
-    getMovement: () => movement,
-    getAccessibility: () => accessibility,
-    getDifficultyProfile: () => DIFFICULTY_PROFILES[difficulty],
-    getContent: () => content,
-    getStageDef: () => stageDef,
+    get combat() {
+      return combat;
+    },
+    get accessibility() {
+      return accessibility;
+    },
+    get difficultyProfile() {
+      return DIFFICULTY_PROFILES[difficulty];
+    },
+    get content() {
+      return content;
+    },
+    get stageDef() {
+      return stageDef;
+    },
+    get formBehaviour() {
+      return getFormBehaviour(world.player.form);
+    },
   });
 
   /** Rebuilt per step; cheap, and it keeps every field honest rather than stale. */
