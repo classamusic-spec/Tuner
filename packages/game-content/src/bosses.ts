@@ -876,6 +876,9 @@ export const BOSSES: Readonly<Record<string, BossDef>> = {
         recoverySeconds: 1,
         phases: [1, 2],
         weight: 3,
+        /** The canon has to resolve; all three mouths inhale together at the
+         *  end of it, and that breath is the phase-one punish window. */
+        opensVulnerability: true,
       },
       {
         id: 'mm-hollow-summon',
