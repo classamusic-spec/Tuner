@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist-types",
+    "noEmit": false,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/physics" },
+    { "path": "../../packages/input" },
+    { "path": "../../packages/audio" },
+    { "path": "../../packages/game-core" },
+    { "path": "../../packages/game-content" },
+    { "path": "../../packages/platform" },
+    { "path": "../../packages/persistence" },
+    { "path": "../../packages/rendering" },
+    { "path": "../../packages/ui" }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "tuner-resonance-breaker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TUNER: RESONANCE BREAKER — a third-person 3D action-platformer about restoring the world's 432 Hz resonance.",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "typecheck": "tsc -b tsconfig.build.json",
+    "typecheck:clean": "tsc -b tsconfig.build.json --clean",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,css,html}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,css,html}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "dev": "pnpm --filter @tuner/web dev",
+    "build": "pnpm run typecheck && pnpm --filter @tuner/web build",
+    "build:web": "pnpm --filter @tuner/web build",
+    "preview": "pnpm --filter @tuner/web preview",
+    "verify": "pnpm run typecheck && pnpm run lint && pnpm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "22.20.1",
+    "eslint": "9.39.5",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "globals": "15.14.0",
+    "prettier": "3.9.6",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.65.0",
+    "vitest": "3.2.7",
+    "@vitest/coverage-v8": "3.2.7"
+  }
+}
