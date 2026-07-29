@@ -25,11 +25,16 @@ export default defineConfig({
     video: 'off',
     // WebGL in headless Chromium needs software rendering in this container.
     launchOptions: {
+      // The environment ships a pre-installed Chromium whose build number does
+      // not match what this Playwright version would download. Point at the real
+      // binary rather than fetching a second copy.
+      executablePath: process.env.TUNER_CHROMIUM ?? undefined,
       args: [
         '--use-gl=swiftshader',
         '--enable-unsafe-swiftshader',
         '--disable-gpu-sandbox',
         '--no-sandbox',
+        '--disable-dev-shm-usage',
       ],
     },
   },
@@ -43,8 +48,17 @@ export default defineConfig({
       name: 'tablet-touch',
       use: {
         ...devices['iPad (gen 7) landscape'],
+        // The iPad profiles default to WebKit, which is not installed here, so
+        // the browser died at launch rather than on any assertion. The tablet
+        // form factor is what matters to this suite, not the engine.
+        browserName: 'chromium',
         hasTouch: true,
         isMobile: true,
+        // The device profile's 2x scale factor asks software rendering for a
+        // 2160x1620 framebuffer, which this container cannot allocate — the GPU
+        // process dies during initialisation. Rendering at 1x tests the same
+        // code paths at a size that fits.
+        deviceScaleFactor: 1,
       },
     },
     {

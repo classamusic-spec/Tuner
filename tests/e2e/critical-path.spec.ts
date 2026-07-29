@@ -95,6 +95,11 @@ test.describe('gameplay', () => {
     await startGameplay(page);
     await page.locator('canvas').click({ position: { x: 100, y: 100 } });
 
+    // The stage opens on a cutscene that deliberately holds control — the Tuner
+    // is waking up mid-attack. Skip it the way a player would.
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(300);
+
     const start = await page.evaluate(() => window.__tuner?.playerPosition);
     expect(start).toBeDefined();
 
@@ -169,24 +174,42 @@ test.describe('touch', () => {
     const controls = page.getByTestId('touch-controls');
     await expect(controls).toBeVisible();
 
+    // Playwright's mouse API emits mouse events, which the touch source
+    // correctly ignores — so a real touch drag has to be dispatched through CDP.
+    const cdp = await page.context().newCDPSession(page);
+    const touchAt = async (
+      type: 'touchStart' | 'touchMove' | 'touchEnd',
+      x: number,
+      y: number,
+    ): Promise<void> => {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }],
+      });
+    };
+
+    const viewport = page.viewportSize();
+    expect(viewport).not.toBeNull();
+    if (!viewport) return;
+
+    // Skip the opening cutscene first. What this test is actually about is
+    // whether a touch drag reaches the simulation, so the skip is setup.
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(300);
+
     const start = await page.evaluate(() => window.__tuner?.playerPosition);
 
-    // Drag from the left half of the screen: the movement stick's origin
-    // follows the thumb, so any left-half touch should engage it.
-    const box = await page.locator('canvas').boundingBox();
-    expect(box).not.toBeNull();
-    if (box) {
-      const originX = box.x + box.width * 0.2;
-      const originY = box.y + box.height * 0.7;
-      await page.touchscreen.tap(originX, originY);
-      await page.mouse.move(originX, originY);
-      await page.mouse.down();
-      await page.mouse.move(originX, originY - 90, { steps: 8 });
-      await page.waitForTimeout(900);
-      await page.mouse.up();
+    // The stick's origin follows the thumb, so any left-half touch engages it.
+    const originX = viewport.width * 0.2;
+    const originY = viewport.height * 0.7;
+    await touchAt('touchStart', originX, originY);
+    for (let i = 1; i <= 6; i++) {
+      await touchAt('touchMove', originX, originY - i * 15);
     }
-
+    await page.waitForTimeout(900);
+    await touchAt('touchEnd', originX, originY - 90);
     await page.waitForTimeout(200);
+
     const end = await page.evaluate(() => window.__tuner?.playerPosition);
     const moved = Math.hypot(
       (end?.x ?? 0) - (start?.x ?? 0),

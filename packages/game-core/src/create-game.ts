@@ -59,7 +59,7 @@ export function createGameCore(config: GameCoreConfig): GameCore {
   let difficulty: DifficultyId = config.difficulty ?? 'standard';
   let movement: MovementConfig = { ...DEFAULT_MOVEMENT_CONFIG, ...config.movement };
   let combat: CombatConfig = { ...DEFAULT_COMBAT_CONFIG, ...config.combat };
-  let camera: CameraConfig = { ...DEFAULT_CAMERA_CONFIG, ...config.camera };
+  const camera: CameraConfig = { ...DEFAULT_CAMERA_CONFIG, ...config.camera };
   let accessibility: AccessibilityConfig = {
     ...DEFAULT_ACCESSIBILITY_CONFIG,
     ...config.accessibility,
@@ -77,8 +77,8 @@ export function createGameCore(config: GameCoreConfig): GameCore {
   // The camera basis is supplied by the host each step so that aiming matches
   // exactly what the player is looking at. Until the host reports one, aim runs
   // off the player's own facing.
-  let cameraYaw = 0;
-  let cameraPitch = 0;
+  const cameraYaw = 0;
+  const cameraPitch = 0;
 
   let lastStepMs = 0;
   let disposed = false;

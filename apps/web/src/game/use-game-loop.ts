@@ -1,169 +1,154 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createEventBus,
   createFixedStepDriver,
   SIM_STEP_SECONDS,
   type EventBus,
+  type StageId,
 } from '@tuner/shared';
-import type { DifficultyId, StageId } from '@tuner/shared';
 import { createKinematicWorld } from '@tuner/physics';
-import { createInputManager, createKeyboardMouseSource, createGamepadSource, createTouchSource } from '@tuner/input';
-import type { InputManager, InputSettings } from '@tuner/input';
-import { createWebAudioEngine, type AudioEngine } from '@tuner/audio';
-import { createGameCore, type AccessibilityConfig, type GameCore, type GameEvents } from '@tuner/game-core';
+import {
+  createGamepadSource,
+  createInputManager,
+  createKeyboardMouseSource,
+  createTouchSource,
+  type InputManager,
+  type TouchInputSource,
+} from '@tuner/input';
+import {
+  createCameraState,
+  createGameCore,
+  resolveCameraTransform,
+  type CameraState,
+  type GameCore,
+  type GameEvents,
+} from '@tuner/game-core';
 import { CONTENT } from '@tuner/game-content';
+import { createAdaptiveQualityController, detectCapabilities, recommendTier } from '@tuner/platform';
 
 /**
  * The frame loop.
  *
- * The host owns wall-clock time; the simulation owns fixed steps. Every frame
+ * The host owns wall-clock time; the simulation owns fixed steps. Each frame
  * feeds the real elapsed delta into `FixedStepDriver`, which runs zero or more
- * 1/60 s simulation steps and returns an interpolation factor for rendering.
- * That separation is why a dash covers the same distance at 30, 60 and 144 fps.
+ * 1/60 s simulation steps. That separation is why a dash covers the same
+ * distance at 30, 60 and 144 fps.
  *
- * Nothing here puts simulation state into React state. The world is read
- * through a ref inside the render loop, because a game that re-renders React
- * sixty times a second spends its frame budget on reconciliation rather than on
- * the game.
+ * Nothing here puts world state into React state. The world is read through refs
+ * and the renderer drives Three.js objects inside `useFrame` — a game that
+ * re-renders React sixty times a second spends its budget on reconciliation.
  */
 
 export interface GameLoopHandle {
   readonly core: GameCore | null;
   readonly events: EventBus<GameEvents>;
-  readonly audio: AudioEngine | null;
   readonly input: InputManager | null;
-  /** Interpolation factor for the current render frame, in [0, 1). */
-  readonly alphaRef: { current: number };
-  /** Camera yaw/pitch owned by the renderer and fed back into aiming. */
-  readonly cameraRef: { current: { yaw: number; pitch: number } };
+  readonly touch: TouchInputSource | null;
+  readonly camera: CameraState;
+  readonly quality: ReturnType<typeof createAdaptiveQualityController>;
   readonly ready: boolean;
   readonly error: Error | null;
+  /** Frames rendered since boot, for the E2E diagnostics surface. */
+  readonly frames: { current: number };
   start(stageId: StageId): void;
   stop(): void;
   setPaused(paused: boolean): void;
-  readonly frames: { current: number };
+  readonly isPaused: () => boolean;
 }
 
-export interface GameLoopOptions {
-  difficulty: DifficultyId;
-  accessibility: Partial<AccessibilityConfig>;
-  inputSettings?: Partial<InputSettings>;
-  /** Element the input sources attach to. Usually the canvas' container. */
-  target: HTMLElement | null;
-  /** Enables audio only after a real user gesture, as browsers require. */
-  audioUnlocked: boolean;
-}
-
-export function useGameLoop(options: GameLoopOptions): GameLoopHandle {
+export function useGameLoop(target: HTMLElement | null): GameLoopHandle {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const eventsRef = useRef<EventBus<GameEvents>>(createEventBus<GameEvents>());
+  const events = useMemo(() => createEventBus<GameEvents>(), []);
+  const capabilities = useMemo(() => detectCapabilities(), []);
+  const quality = useMemo(
+    () => createAdaptiveQualityController(recommendTier(capabilities)),
+    [capabilities],
+  );
+
+  // The host owns the physics world, because the camera resolver needs to
+  // sphere-cast against it too. Reaching into the core for it would be worse.
+  const physicsRef = useRef<ReturnType<typeof createKinematicWorld> | null>(null);
   const coreRef = useRef<GameCore | null>(null);
-  const audioRef = useRef<AudioEngine | null>(null);
   const inputRef = useRef<InputManager | null>(null);
-  const alphaRef = useRef(0);
-  const cameraRef = useRef({ yaw: 0, pitch: -0.15 });
+  const touchRef = useRef<TouchInputSource | null>(null);
+  const cameraRef = useRef<CameraState | null>(null);
   const framesRef = useRef(0);
   const rafRef = useRef<number | null>(null);
-  const lastTimeRef = useRef<number>(0);
+  const lastTimeRef = useRef(0);
   const pausedRef = useRef(false);
   const runningRef = useRef(false);
 
-  const { target, difficulty, accessibility, inputSettings, audioUnlocked } = options;
-
-  // Build the simulation and its adapters once. -----------------------------
+  // Build the simulation and its adapters once.
   useEffect(() => {
-    let cancelled = false;
     try {
       const physics = createKinematicWorld();
+      physicsRef.current = physics;
       const core = createGameCore({
         content: CONTENT,
         physics,
-        events: eventsRef.current,
-        difficulty,
-        accessibility,
+        events,
+        difficulty: 'standard',
         seed: 'world-chord',
+        accessibility: capabilities.prefersReducedMotion ? { reducedMotion: true } : {},
         clock: () => performance.now(),
       });
-
-      const input = createInputManager(inputSettings);
-      const audio = createWebAudioEngine();
-
-      if (cancelled) {
-        core.dispose();
-        return;
-      }
-
       coreRef.current = core;
-      inputRef.current = input;
-      audioRef.current = audio;
+      inputRef.current = createInputManager();
+      cameraRef.current = createCameraState(core.cameraConfig);
       setReady(true);
     } catch (cause) {
-      // A failure here is fatal but must be visible, not a white screen.
       setError(cause instanceof Error ? cause : new Error(String(cause)));
     }
 
     return () => {
-      cancelled = true;
       coreRef.current?.dispose();
       coreRef.current = null;
+      physicsRef.current = null;
       inputRef.current?.dispose();
       inputRef.current = null;
-      audioRef.current?.dispose();
-      audioRef.current = null;
     };
-    // Difficulty and accessibility are pushed in through setters below rather
-    // than rebuilding the world, so they are deliberately not dependencies.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [events, capabilities.prefersReducedMotion]);
 
-  // Attach input sources to the canvas once it exists. ----------------------
+  // Attach input sources once the canvas exists.
   useEffect(() => {
     const input = inputRef.current;
     if (!input || !target) return;
 
-    const detachers: Array<() => void> = [];
-    const keyboard = createKeyboardMouseSource({ target });
+    const keyboard = createKeyboardMouseSource({ target, usePointerLock: false });
     const gamepad = createGamepadSource();
     const touch = createTouchSource({ target });
+    touchRef.current = touch;
 
-    for (const source of [keyboard, gamepad, touch]) {
+    const detachers = [keyboard, gamepad, touch].map((source) => {
       input.addSource(source);
-      detachers.push(source.attach());
-    }
+      return source.attach();
+    });
+
+    const applyViewport = (): void => {
+      touch.setViewport(window.innerWidth, window.innerHeight);
+    };
+    applyViewport();
+    window.addEventListener('resize', applyViewport);
 
     return () => {
+      window.removeEventListener('resize', applyViewport);
       for (const detach of detachers) detach();
       input.removeSource(keyboard);
       input.removeSource(gamepad);
       input.removeSource(touch);
+      touchRef.current = null;
     };
   }, [target, ready]);
 
-  // Push settings changes into the live simulation. -------------------------
-  useEffect(() => {
-    coreRef.current?.setDifficulty(difficulty);
-  }, [difficulty]);
-
-  useEffect(() => {
-    coreRef.current?.setAccessibility(accessibility);
-  }, [accessibility]);
-
-  useEffect(() => {
-    if (audioUnlocked) void audioRef.current?.unlock();
-  }, [audioUnlocked]);
-
-  // Suspend on background so a phone does not burn battery in a pocket. -----
+  // Pause on background so a phone does not burn battery in a pocket.
   useEffect(() => {
     const onVisibility = (): void => {
       if (document.hidden) {
         pausedRef.current = true;
         coreRef.current?.setPaused(true);
-        audioRef.current?.suspend();
       } else {
-        audioRef.current?.resume();
-        // Time is not replayed on resume: the accumulator restarts clean.
         lastTimeRef.current = performance.now();
       }
     };
@@ -179,51 +164,72 @@ export function useGameLoop(options: GameLoopOptions): GameLoopHandle {
     }
   }, []);
 
-  const start = useCallback(
-    (stageId: StageId): void => {
-      const core = coreRef.current;
-      const input = inputRef.current;
-      if (!core || !input || runningRef.current) return;
+  const start = useCallback((stageId: StageId): void => {
+    const core = coreRef.current;
+    const input = inputRef.current;
+    if (!core || !input) return;
 
-      core.loadStage(stageId);
-      pausedRef.current = false;
-      core.setPaused(false);
-      runningRef.current = true;
+    core.loadStage(stageId);
+    pausedRef.current = false;
+    core.setPaused(false);
 
-      const driver = createFixedStepDriver({ stepSeconds: SIM_STEP_SECONDS });
-      lastTimeRef.current = performance.now();
+    if (runningRef.current) return;
+    runningRef.current = true;
 
-      const frame = (time: number): void => {
-        if (!runningRef.current) return;
-        rafRef.current = requestAnimationFrame(frame);
+    const driver = createFixedStepDriver({ stepSeconds: SIM_STEP_SECONDS });
+    lastTimeRef.current = performance.now();
 
-        const deltaSeconds = Math.max(0, (time - lastTimeRef.current) / 1000);
-        lastTimeRef.current = time;
-        framesRef.current += 1;
-
-        if (pausedRef.current) {
-          // Still drain input while paused so menu navigation works, but do
-          // not advance the simulation.
-          input.update(deltaSeconds);
-          return;
-        }
-
-        alphaRef.current = driver.advance(deltaSeconds, (fixedDelta) => {
-          const inputFrame = input.update(fixedDelta);
-          core.step(fixedDelta, inputFrame);
-        });
-      };
-
+    const frame = (time: number): void => {
+      if (!runningRef.current) return;
       rafRef.current = requestAnimationFrame(frame);
-    },
-    [],
-  );
+
+      const deltaMs = Math.max(0, time - lastTimeRef.current);
+      lastTimeRef.current = time;
+      framesRef.current += 1;
+      quality.sample(deltaMs);
+
+      const deltaSeconds = deltaMs / 1000;
+
+      if (pausedRef.current) {
+        // Keep draining input so menu navigation still works while paused, but
+        // do not advance the simulation.
+        input.update(deltaSeconds);
+        return;
+      }
+
+      driver.advance(deltaSeconds, (fixedDelta) => {
+        const inputFrame = input.update(fixedDelta);
+        core.step(fixedDelta, inputFrame);
+      });
+
+      // Resolve the camera once per rendered frame, from the settled world.
+      const camera = cameraRef.current;
+      const physics = physicsRef.current;
+      if (camera && physics) {
+        const state = core.state;
+        resolveCameraTransform({
+          intent: state.camera,
+          config: core.cameraConfig,
+          physics,
+          state: camera,
+          dt: Math.min(deltaSeconds, 0.1),
+          lookX: input.current.lookX,
+          lookY: input.current.lookY,
+          playerAirborne: !state.player.grounded,
+          playerFallSpeed: state.player.velocity.y,
+          reducedMotion: core.accessibilityConfig.reducedMotion,
+          screenShakeScale: core.accessibilityConfig.screenShakeScale,
+          tick: state.tick,
+        });
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(frame);
+  }, [quality]);
 
   const setPaused = useCallback((paused: boolean): void => {
     pausedRef.current = paused;
     coreRef.current?.setPaused(paused);
-    if (paused) audioRef.current?.suspend();
-    else audioRef.current?.resume();
   }, []);
 
   useEffect(() => stop, [stop]);
@@ -232,20 +238,44 @@ export function useGameLoop(options: GameLoopOptions): GameLoopHandle {
     get core() {
       return coreRef.current;
     },
-    events: eventsRef.current,
-    get audio() {
-      return audioRef.current;
-    },
+    events,
     get input() {
       return inputRef.current;
     },
-    alphaRef,
-    cameraRef,
+    get touch() {
+      return touchRef.current;
+    },
+    get camera() {
+      return cameraRef.current ?? createCameraState({ ...DEFAULT_CAMERA_FALLBACK });
+    },
+    quality,
     ready,
     error,
+    frames: framesRef,
     start,
     stop,
     setPaused,
-    frames: framesRef,
+    isPaused: () => pausedRef.current,
   };
 }
+
+/** Only reached if the camera is queried before the core has been built. */
+const DEFAULT_CAMERA_FALLBACK = {
+  distance: 7.2,
+  minDistance: 2.4,
+  maxDistance: 11,
+  heightOffset: 1.35,
+  shoulderOffset: 0.55,
+  positionSmoothing: 0.0016,
+  rotationSmoothing: 0.0009,
+  minPitch: -1.15,
+  maxPitch: 0.72,
+  baseFov: 62,
+  speedFovBoost: 11,
+  fovSmoothing: 0.04,
+  collisionRadius: 0.34,
+  autoRecentreDelay: 1.4,
+  autoRecentreSpeed: 2.1,
+  landingLookAhead: 0.35,
+  shakeScale: 1,
+};

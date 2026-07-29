@@ -72,7 +72,7 @@ export function nextUnlockedForm(
 // ---------------------------------------------------------------------------
 
 export const formSystem: System = (ctx): void => {
-  const { world, input } = ctx;
+  const { world } = ctx;
   const player = world.player;
 
   if (!world.paused && player.movementState !== 'downed') {

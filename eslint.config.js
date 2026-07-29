@@ -71,6 +71,12 @@ export default tseslint.config(
     },
   },
   {
+    // Metro's config must be CommonJS — it is loaded by Metro, not by Vite.
+    files: ['apps/mobile/metro.config.js'],
+    languageOptions: { sourceType: 'commonjs', globals: { ...globals.node } },
+    rules: { '@typescript-eslint/no-require-imports': 'off', 'no-undef': 'off' },
+  },
+  {
     files: ['**/*.test.ts', '**/*.test.tsx', 'tests/**/*.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',

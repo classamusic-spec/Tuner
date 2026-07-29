@@ -471,7 +471,7 @@ interface InstanceGroup {
 }
 
 const scratchMatrix = new THREE.Matrix4();
-const scratchPosition = new THREE.Vector3();
+const _scratchPosition = new THREE.Vector3();
 const scratchQuaternion = new THREE.Quaternion();
 const scratchScale = new THREE.Vector3();
 const scratchColour = new THREE.Color();
