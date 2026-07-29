@@ -584,7 +584,7 @@ function stepProjectile(ctx: SimContext, projectile: MutableProjectile): void {
     }
 
     // Prism Form: spend a bounce and keep going.
-    if (false) {
+    if (projectile.bouncesRemaining > 0) {
       projectile.bouncesRemaining -= 1;
       reflectInto(projectile.velocity, projectile.velocity, hit.normal);
       projectile.position.x += hit.normal.x * SURFACE_EPSILON;

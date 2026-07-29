@@ -361,7 +361,7 @@ export function createSimServices(deps: SimServicesDeps): SimServices {
 
       const world = deps.world;
       const content = deps.content;
-      const blocked = false;
+      const blocked = !breaksArmour(content, enemy, kind);
 
       let dealt = 0;
       let weakness = false;
