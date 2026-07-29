@@ -45,8 +45,8 @@ import { Layer } from '@tuner/physics';
  *   x  126 … 150   Hall of the Armoured . floor top  1.8    sight, charge
  *   x  150 … 174   The broken span ...... floor top  0.6    dash
  *   x  174 … 206   Escape colonnade ..... floor top  0.6    detune wave
- *   x  206 … 242   Guardian ring ........ floor top  0.6    mini-boss
- *   x  242 … 262   Lattice terrace ...... floor top  0.6    the reveal
+ *   x  204 … 242   Guardian ring ........ floor top  0.6    mini-boss
+ *   x  244 … 264   Lattice terrace ...... floor top  0.6    the reveal
  *
  * killPlaneY sits at -42, which is 35.8 m below the lowest authored collider
  * (the chasm pillar bottoms out at -6.2).
@@ -397,74 +397,82 @@ export const FALLEN_SANCTUARY: StageDef = {
 
     // --- Guardian ring. ----------------------------------------------------
     {
-      // top y 0.6, x 206 … 240, z -17 … 17. A 34 m square: room to circle a
-      // heavy mini-boss without ever being cornered.
-      // Boss arena centre: { x: 223, y: 0.6, z: 0 }, radius 15.
+      // top y 0.6, x 204 … 242, z -19 … 19. A 38 m square, so the Vault
+      // Warden's authored arena — arenaRadius 18 — is fully inscribed with a
+      // metre to spare, and the player can always circle rather than be
+      // cornered against a wall.
+      //
+      // CONTRACT NOTE for `BOSSES['sanctuary-guardian']`: this stage's arena is
+      // centred at { x: 223, y: 0.6, z: 0 }. The BossDef currently carries
+      // `arenaCentre: { x: 0, y: 0, z: -64 }`, which was authored before this
+      // geometry existed and does not sit inside any floor in this stage.
       id: 'geo-arena-guardian',
-      shape: { kind: 'box', halfExtents: { x: 17, y: 1.2, z: 17 } },
+      shape: { kind: 'box', halfExtents: { x: 19, y: 1.2, z: 19 } },
       position: { x: 223, y: -0.6, z: 0 },
       style: 'stone-carved',
     },
     {
       id: 'geo-arena-wall-north',
-      shape: { kind: 'box', halfExtents: { x: 17, y: 5, z: 1 } },
-      position: { x: 223, y: 5, z: 18 },
+      shape: { kind: 'box', halfExtents: { x: 19, y: 5, z: 1 } },
+      position: { x: 223, y: 5, z: 20 },
       style: 'stone-carved',
     },
     {
       id: 'geo-arena-wall-south',
-      shape: { kind: 'box', halfExtents: { x: 17, y: 5, z: 1 } },
-      position: { x: 223, y: 5, z: -18 },
+      shape: { kind: 'box', halfExtents: { x: 19, y: 5, z: 1 } },
+      position: { x: 223, y: 5, z: -20 },
       style: 'stone-carved',
     },
     {
       // The west face, split either side of the corridor mouth at z -5 … 5.
       id: 'geo-arena-wall-west-north',
-      shape: { kind: 'box', halfExtents: { x: 1, y: 5, z: 6 } },
-      position: { x: 207, y: 5, z: 11 },
+      shape: { kind: 'box', halfExtents: { x: 1, y: 5, z: 7 } },
+      position: { x: 205, y: 5, z: 12 },
       style: 'stone-carved',
     },
     {
       id: 'geo-arena-wall-west-south',
-      shape: { kind: 'box', halfExtents: { x: 1, y: 5, z: 6 } },
-      position: { x: 207, y: 5, z: -11 },
+      shape: { kind: 'box', halfExtents: { x: 1, y: 5, z: 7 } },
+      position: { x: 205, y: 5, z: -12 },
       style: 'stone-carved',
     },
     {
       id: 'geo-arena-wall-east-north',
-      shape: { kind: 'box', halfExtents: { x: 1, y: 5, z: 6.5 } },
-      position: { x: 241, y: 5, z: 10.5 },
+      shape: { kind: 'box', halfExtents: { x: 1, y: 5, z: 7.5 } },
+      position: { x: 243, y: 5, z: 11.5 },
       style: 'stone-carved',
     },
     {
       id: 'geo-arena-wall-east-south',
-      shape: { kind: 'box', halfExtents: { x: 1, y: 5, z: 6.5 } },
-      position: { x: 241, y: 5, z: -10.5 },
+      shape: { kind: 'box', halfExtents: { x: 1, y: 5, z: 7.5 } },
+      position: { x: 243, y: 5, z: -11.5 },
       style: 'stone-carved',
     },
     {
-      // Four pillars for cover during the mini-boss. Tops at 7.6.
+      // Four pillars for cover during the mini-boss. Tops at 7.6, set at a
+      // radius of 16.3 m so they break line of sight without shrinking the
+      // circle the Ring Sweep needs.
       id: 'geo-arena-pillar-nw',
       shape: { kind: 'box', halfExtents: { x: 1.2, y: 3.5, z: 1.2 } },
-      position: { x: 212, y: 4.1, z: 11 },
+      position: { x: 212, y: 4.1, z: 12 },
       style: 'stone-carved',
     },
     {
       id: 'geo-arena-pillar-sw',
       shape: { kind: 'box', halfExtents: { x: 1.2, y: 3.5, z: 1.2 } },
-      position: { x: 212, y: 4.1, z: -11 },
+      position: { x: 212, y: 4.1, z: -12 },
       style: 'stone-carved',
     },
     {
       id: 'geo-arena-pillar-ne',
       shape: { kind: 'box', halfExtents: { x: 1.2, y: 3.5, z: 1.2 } },
-      position: { x: 234, y: 4.1, z: 11 },
+      position: { x: 234, y: 4.1, z: 12 },
       style: 'stone-carved',
     },
     {
       id: 'geo-arena-pillar-se',
       shape: { kind: 'box', halfExtents: { x: 1.2, y: 3.5, z: 1.2 } },
-      position: { x: 234, y: 4.1, z: -11 },
+      position: { x: 234, y: 4.1, z: -12 },
       style: 'stone-carved',
     },
     {
@@ -472,41 +480,41 @@ export const FALLEN_SANCTUARY: StageDef = {
       // than a 2 m hole once the seal lifts.
       id: 'geo-lattice-threshold',
       shape: { kind: 'box', halfExtents: { x: 1, y: 1.2, z: 4 } },
-      position: { x: 241, y: -0.6, z: 0 },
+      position: { x: 243, y: -0.6, z: 0 },
       style: 'gold-trim',
     },
 
     // --- Lattice terrace. --------------------------------------------------
     {
-      // top y 0.6, x 242 … 262, z -10 … 10. Open to the sky on three sides:
+      // top y 0.6, x 244 … 264, z -10 … 10. Open to the sky on three sides:
       // this is the shot the World Lattice unfolds into.
       id: 'geo-terrace-lattice',
       shape: { kind: 'box', halfExtents: { x: 10, y: 1.2, z: 10 } },
-      position: { x: 252, y: -0.6, z: 0 },
+      position: { x: 254, y: -0.6, z: 0 },
       style: 'stone-carved',
     },
     {
       id: 'geo-lattice-plinth',
       shape: { kind: 'box', halfExtents: { x: 2.5, y: 0.5, z: 2.5 } },
-      position: { x: 252, y: 1.1, z: 0 },
+      position: { x: 254, y: 1.1, z: 0 },
       style: 'gold-trim',
     },
     {
       id: 'geo-terrace-rail-north',
       shape: { kind: 'box', halfExtents: { x: 10, y: 0.9, z: 0.5 } },
-      position: { x: 252, y: 1.5, z: 10.5 },
+      position: { x: 254, y: 1.5, z: 10.5 },
       style: 'gold-trim',
     },
     {
       id: 'geo-terrace-rail-south',
       shape: { kind: 'box', halfExtents: { x: 10, y: 0.9, z: 0.5 } },
-      position: { x: 252, y: 1.5, z: -10.5 },
+      position: { x: 254, y: 1.5, z: -10.5 },
       style: 'gold-trim',
     },
     {
       id: 'geo-terrace-rail-east',
       shape: { kind: 'box', halfExtents: { x: 0.5, y: 0.9, z: 10 } },
-      position: { x: 262.5, y: 1.5, z: 0 },
+      position: { x: 264.5, y: 1.5, z: 0 },
       style: 'gold-trim',
     },
   ],
@@ -711,8 +719,11 @@ export const FALLEN_SANCTUARY: StageDef = {
       minDifficulty: 'standard',
     },
     {
-      id: 'spawn-drifter-court',
-      archetype: 'drifter',
+      // A Sanctum Moth: not a Detuner at all, but the Sanctuary's own wildlife
+      // caught in the infection. It is `cleansable`, it carries no projectile,
+      // and it is the stage's quiet argument that this is a restoration story.
+      id: 'spawn-moth-court',
+      archetype: 'sanctum-moth',
       position: { x: 123, y: 5.5, z: -6 },
       patrol: [
         { x: 123, y: 5.5, z: -6 },
@@ -723,11 +734,12 @@ export const FALLEN_SANCTUARY: StageDef = {
       minDifficulty: 'explorer',
     },
 
-    // The armoured lesson. A Fracture brute shrugs off pulses; only a charged
-    // chord opens it.
+    // The armoured lesson. A Stone Fracture carries 26 armour against a 10
+    // damage pulse, and its `armourBreakers` are charge and counter — so the
+    // first charge tier (26) is exactly the key that fits the lock.
     {
       id: 'spawn-fracture-warden',
-      archetype: 'fracture',
+      archetype: 'stone-fracture',
       position: { x: 143, y: 2.6, z: 0 },
       yaw: Math.PI,
       triggerId: 'trg-charge-encounter',
@@ -736,6 +748,18 @@ export const FALLEN_SANCTUARY: StageDef = {
       id: 'spawn-whisperer-04',
       archetype: 'whisperer',
       position: { x: 146, y: 2.6, z: 5 },
+      yaw: Math.PI,
+      triggerId: 'trg-charge-encounter',
+      minDifficulty: 'standard',
+    },
+    {
+      // A second armoured shape, this one stationary, so the charge lesson gets
+      // a safe target as well as a moving one.
+      // Set back from the broken span so its 20 m reach covers the hall rather
+      // than the dash crossing — nothing shoots at a player mid-tutorial-jump.
+      id: 'spawn-amplifier-hall',
+      archetype: 'amplifier-pylon',
+      position: { x: 141, y: 2.5, z: -5.5 },
       yaw: Math.PI,
       triggerId: 'trg-charge-encounter',
       minDifficulty: 'standard',
@@ -750,22 +774,16 @@ export const FALLEN_SANCTUARY: StageDef = {
       guardsSecret: 'pickup-secret-lost-motif',
     },
 
-    // Pressure during the escape run. Both are difficulty-gated so Story and
-    // Explorer players get a clean sprint.
+    // Pressure during the escape run: one unarmoured flyer with a single
+    // counterable shot, difficulty-gated so Story players get a clean sprint.
+    // Nothing armoured goes in the corridor — a target that needs a full charge
+    // while a wall of infection is closing is not tension, it is a stop sign.
     {
       id: 'spawn-drifter-escape',
-      archetype: 'drifter',
+      archetype: 'spore-drifter',
       position: { x: 186, y: 3.5, z: 0 },
       triggerId: 'trg-escape-run',
       minDifficulty: 'explorer',
-    },
-    {
-      id: 'spawn-amplifier-corridor',
-      archetype: 'amplifier',
-      position: { x: 200, y: 1.4, z: 4 },
-      yaw: Math.PI,
-      triggerId: 'trg-escape-run',
-      minDifficulty: 'standard',
     },
   ],
 
@@ -858,7 +876,7 @@ export const FALLEN_SANCTUARY: StageDef = {
     {
       id: 'pickup-sanctuary-seed-lattice',
       kind: 'sanctuary-seed',
-      position: { x: 252, y: 2.8, z: 0 },
+      position: { x: 254, y: 2.8, z: 0 },
     },
   ],
 
@@ -917,6 +935,9 @@ export const FALLEN_SANCTUARY: StageDef = {
         kind: 'spawnPlatforms',
         platformIds: ['mp-vigil-step-01', 'mp-vigil-step-02'],
       },
+      // Root, Fifth, Octave — degrees 0, 4, 7. Deliberately the same three
+      // notes as the Vault Warden's `restorationSequence`, so the optional
+      // puzzle quietly rehearses the mini-boss's closing retuning.
       hint: 'Root, then Fifth, then Octave — the vigil the Keepers rang at dawn.',
     },
   ],
@@ -937,7 +958,7 @@ export const FALLEN_SANCTUARY: StageDef = {
       // The gate to the lattice terrace. Releases when the Guardian's tone
       // comes back down to 432 — see `trg-guardian-cleansed`.
       id: 'door-lattice-gate',
-      position: { x: 241, y: 3.2, z: 0 },
+      position: { x: 243, y: 3.2, z: 0 },
       shape: { kind: 'box', halfExtents: { x: 1, y: 2.6, z: 4 } },
       openedByFlag: 'sanctuary-guardian-cleansed',
       style: 'gold-trim',
@@ -1052,9 +1073,11 @@ export const FALLEN_SANCTUARY: StageDef = {
 
     // --- Chasm -------------------------------------------------------------
     {
+      // On the plaza side of the arch, so it fires with the player on their
+      // feet rather than mid-jump over the chasm.
       id: 'trg-objective-chasm',
-      position: { x: 75.5, y: 3, z: 0 },
-      shape: { kind: 'box', halfExtents: { x: 1, y: 3, z: 6 } },
+      position: { x: 71.5, y: 3, z: 0 },
+      shape: { kind: 'box', halfExtents: { x: 1, y: 3, z: 3.4 } },
       once: true,
       action: {
         kind: 'objective',
@@ -1081,7 +1104,7 @@ export const FALLEN_SANCTUARY: StageDef = {
           'spawn-whisperer-01',
           'spawn-whisperer-02',
           'spawn-whisperer-03',
-          'spawn-drifter-court',
+          'spawn-moth-court',
         ],
       },
     },
@@ -1108,7 +1131,7 @@ export const FALLEN_SANCTUARY: StageDef = {
       once: true,
       action: {
         kind: 'spawnWave',
-        spawnIds: ['spawn-fracture-warden', 'spawn-whisperer-04'],
+        spawnIds: ['spawn-fracture-warden', 'spawn-whisperer-04', 'spawn-amplifier-hall'],
       },
     },
 
@@ -1155,7 +1178,7 @@ export const FALLEN_SANCTUARY: StageDef = {
       once: true,
       action: {
         kind: 'spawnWave',
-        spawnIds: ['spawn-drifter-escape', 'spawn-amplifier-corridor'],
+        spawnIds: ['spawn-drifter-escape'],
       },
     },
 
@@ -1163,14 +1186,14 @@ export const FALLEN_SANCTUARY: StageDef = {
     {
       id: 'trg-cs-guardian',
       position: { x: 210, y: 2, z: 0 },
-      shape: { kind: 'box', halfExtents: { x: 1.5, y: 4, z: 16 } },
+      shape: { kind: 'box', halfExtents: { x: 1.5, y: 4, z: 18 } },
       once: true,
       action: { kind: 'cutscene', cutsceneId: 'cs-guardian' },
     },
     {
       id: 'trg-guardian-phase',
       position: { x: 213, y: 2, z: 0 },
-      shape: { kind: 'box', halfExtents: { x: 1.5, y: 4, z: 16 } },
+      shape: { kind: 'box', halfExtents: { x: 1.5, y: 4, z: 18 } },
       once: true,
       action: { kind: 'phase', phase: 'miniboss' },
     },
@@ -1185,21 +1208,21 @@ export const FALLEN_SANCTUARY: StageDef = {
     // --- The World Lattice -------------------------------------------------
     {
       id: 'trg-cs-lattice',
-      position: { x: 252, y: 2, z: 0 },
+      position: { x: 254, y: 2, z: 0 },
       shape: { kind: 'sphere', radius: 5 },
       once: true,
       action: { kind: 'cutscene', cutsceneId: 'cs-lattice' },
     },
     {
       id: 'trg-lattice-flag',
-      position: { x: 252, y: 2, z: 0 },
+      position: { x: 254, y: 2, z: 0 },
       shape: { kind: 'sphere', radius: 5 },
       once: true,
       action: { kind: 'setFlag', flag: 'world-lattice-online' },
     },
     {
       id: 'trg-lattice-phase',
-      position: { x: 256, y: 2, z: 0 },
+      position: { x: 258, y: 2, z: 0 },
       shape: { kind: 'box', halfExtents: { x: 1.5, y: 4, z: 10 } },
       once: true,
       action: { kind: 'phase', phase: 'restoration' },
@@ -1542,10 +1565,15 @@ export const FALLEN_SANCTUARY: StageDef = {
     { id: 'prop-corridor-vent-frame-01', kind: 'vent-frame', position: { x: 180, y: 0.6, z: -2.5 } },
     { id: 'prop-corridor-vent-frame-02', kind: 'vent-frame', position: { x: 188, y: 0.6, z: 2.5 } },
     { id: 'prop-corridor-vent-frame-03', kind: 'vent-frame', position: { x: 196, y: 0.6, z: -2.5 } },
-    { id: 'prop-guardian-sigil', kind: 'floor-mandala', position: { x: 223, y: 0.61, z: 0 }, scale: 9 },
-    { id: 'prop-guardian-throne', kind: 'guardian-cradle', position: { x: 223, y: 0.6, z: 14 }, scale: 3 },
-    { id: 'prop-lattice-pillar', kind: 'lattice-pillar', position: { x: 252, y: 1.6, z: 0 }, scale: 3.2 },
-    { id: 'prop-lattice-halo-inner', kind: 'orbit-ring', position: { x: 252, y: 11, z: 0 }, scale: 5 },
-    { id: 'prop-lattice-halo-outer', kind: 'orbit-ring', position: { x: 252, y: 15, z: 0 }, scale: 8, yaw: 0.7 },
+    { id: 'prop-guardian-sigil', kind: 'floor-mandala', position: { x: 223, y: 0.61, z: 0 }, scale: 10 },
+    { id: 'prop-guardian-cradle', kind: 'guardian-cradle', position: { x: 223, y: 0.6, z: 16 }, scale: 3 },
+    // The four braziers the Vault Warden's phase flags dim and relight.
+    { id: 'prop-arena-brazier-nw', kind: 'harmonic-brazier', position: { x: 210, y: 0.6, z: 15 } },
+    { id: 'prop-arena-brazier-sw', kind: 'harmonic-brazier', position: { x: 210, y: 0.6, z: -15 } },
+    { id: 'prop-arena-brazier-ne', kind: 'harmonic-brazier', position: { x: 236, y: 0.6, z: 15 } },
+    { id: 'prop-arena-brazier-se', kind: 'harmonic-brazier', position: { x: 236, y: 0.6, z: -15 } },
+    { id: 'prop-lattice-pillar', kind: 'lattice-pillar', position: { x: 254, y: 1.6, z: 0 }, scale: 3.2 },
+    { id: 'prop-lattice-halo-inner', kind: 'orbit-ring', position: { x: 254, y: 11, z: 0 }, scale: 5 },
+    { id: 'prop-lattice-halo-outer', kind: 'orbit-ring', position: { x: 254, y: 15, z: 0 }, scale: 8, yaw: 0.7 },
   ],
 };

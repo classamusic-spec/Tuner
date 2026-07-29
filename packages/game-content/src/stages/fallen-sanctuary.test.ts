@@ -13,7 +13,8 @@ import {
 import type { Vec3 } from '@tuner/shared';
 import { Layer } from '@tuner/physics';
 import type { ColliderShape } from '@tuner/physics';
-import type { GeometryDef } from '@tuner/game-core';
+import { DEFAULT_COMBAT_CONFIG } from '@tuner/game-core';
+import type { EnemyArchetypeDef, GeometryDef } from '@tuner/game-core';
 
 import { FALLEN_SANCTUARY } from './fallen-sanctuary.js';
 
@@ -84,8 +85,14 @@ const BOSSES = await loadTable(
   'BOSSES',
 );
 
-/** The Detuner families this stage is built around. */
-const REQUIRED_ARCHETYPE_IDS = ['amplifier', 'drifter', 'fracture', 'whisperer'];
+/** The bestiary entries this stage is built around. */
+const REQUIRED_ARCHETYPE_IDS = [
+  'amplifier-pylon',
+  'sanctum-moth',
+  'spore-drifter',
+  'stone-fracture',
+  'whisperer',
+];
 const REQUIRED_MINI_BOSS_ID = 'sanctuary-guardian';
 
 // ---------------------------------------------------------------------------
@@ -463,18 +470,23 @@ describe('FALLEN_SANCTUARY — secrets', () => {
 
     // The ledge under it must itself be form-gated, otherwise the "revisit"
     // framing is a lie: the player could simply walk up and look at it.
-    const ledge = STAGE.geometry.find((piece) => {
-      const box = footprint(piece);
-      if (box === null) return false;
-      return (
-        echoSecret.position.x >= box.minX &&
-        echoSecret.position.x <= box.maxX &&
-        echoSecret.position.z >= box.minZ &&
-        echoSecret.position.z <= box.maxZ &&
-        box.topY <= echoSecret.position.y
-      );
-    });
-    expect(ledge?.revealedBy).toBe('echo');
+    const ledge = groundBeneath(echoSecret.position, STAGE.geometry);
+    expect(ledge).not.toBeNull();
+    if (ledge === null) return;
+
+    const source = STAGE.geometry.find((piece) => piece.id === ledge.id);
+    expect(source?.revealedBy).toBe('echo');
+
+    // And it must be beyond a double jump from the highest ground that is
+    // solid on a first visit directly beneath it.
+    const firstVisitGround = groundBeneath(
+      { ...echoSecret.position, y: echoSecret.position.y },
+      FIRST_VISIT_SURFACES,
+    );
+    expect(firstVisitGround).not.toBeNull();
+    if (firstVisitGround === null) return;
+    // 3.05 m jump + 2.50 m second jump = 5.55 m of rise from flat ground.
+    expect(ledge.topY - firstVisitGround.topY).toBeGreaterThan(5.55);
   });
 });
 
@@ -710,9 +722,11 @@ describe('FALLEN_SANCTUARY — teaching beats', () => {
   it('teaches the pulse on a breakable infected growth that gates progress', () => {
     const growth = STAGE.puzzles.find((puzzle) => puzzle.reward.kind === 'openDoor');
     expect(growth).toBeDefined();
-    if (growth === undefined || growth.reward.kind !== 'openDoor') return;
+    if (growth === undefined) return;
+    const reward = growth.reward;
+    if (reward.kind !== 'openDoor') return;
 
-    const door = STAGE.doors.find((entry) => entry.id === growth.reward.doorId);
+    const door = STAGE.doors.find((entry) => entry.id === reward.doorId);
     expect(door).toBeDefined();
     expect(door?.style).toBe('infected');
 
@@ -829,6 +843,38 @@ describe('FALLEN_SANCTUARY — content tables', () => {
     expect(known.length).toBeGreaterThan(0);
     for (const archetype of used) {
       expect(known, `unknown archetype ${archetype}`).toContain(archetype);
+    }
+  });
+
+  it('gives the charge tutorial a target a pulse genuinely cannot break', () => {
+    const encounter = STAGE.triggers.find(
+      (trigger) => trigger.action.kind === 'spawnWave' && trigger.id === 'trg-charge-encounter',
+    );
+    expect(encounter).toBeDefined();
+    if (encounter === undefined || encounter.action.kind !== 'spawnWave') return;
+
+    const archetypes = encounter.action.spawnIds
+      .map((id) => STAGE.enemies.find((spawn) => spawn.id === id)?.archetype)
+      .filter((id): id is string => id !== undefined);
+    expect(archetypes.length).toBeGreaterThan(0);
+
+    if (ENEMY_ARCHETYPES === null) {
+      expect(archetypes).toContain('stone-fracture');
+      return;
+    }
+    const armoured = archetypes
+      .map((id) => ENEMY_ARCHETYPES[id] as EnemyArchetypeDef | undefined)
+      .filter(
+        (def): def is EnemyArchetypeDef =>
+          def !== undefined && (def.armour ?? 0) > DEFAULT_COMBAT_CONFIG.pulseDamage,
+      );
+    expect(armoured.length, 'the charge lesson has no armoured target').toBeGreaterThan(0);
+
+    // ...and the charge must be a key that actually fits the lock.
+    const firstTier = DEFAULT_COMBAT_CONFIG.chargeTierDamage[0] ?? 0;
+    for (const def of armoured) {
+      expect(def.armourBreakers ?? []).toContain('charge');
+      expect(firstTier).toBeGreaterThanOrEqual(def.armour ?? 0);
     }
   });
 
