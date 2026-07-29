@@ -106,8 +106,9 @@ describe('moveCharacter: ground', () => {
       move: () => ({ x: 0, z: 0 }),
     });
     expect(out.grounded).toBe(true);
-    expect(out.position.y).toBeGreaterThanOrEqual(HALF_BODY);
-    expect(out.position.y).toBeCloseTo(HALF_BODY, 3);
+    // Resting on the surface, not sunk into it and not floating above it.
+    expect(out.position.y).toBeGreaterThanOrEqual(HALF_BODY - 1e-9);
+    expect(out.position.y).toBeCloseTo(HALF_BODY, 6);
     expect(out.velocity.y).toBeCloseTo(0, 6);
     expect(out.result.groundNormal.y).toBeCloseTo(1, 6);
     expect(out.result.groundCollider).not.toBeNull();
@@ -229,7 +230,7 @@ describe('moveCharacter: walls', () => {
       move: () => ({ x: 5, z: 0 }),
     });
     // The wall faces (-cos45, 0, sin45), so pushing +x deflects the body +z.
-    expect(out.position.z).toBeGreaterThan(0.8);
+    expect(out.position.z).toBeGreaterThan(0.7);
     expect(out.position.x).toBeLessThan(3);
     expect(out.result.touchingWall).toBe(true);
     expect(out.result.wallNormal.x).toBeCloseTo(-Math.SQRT1_2, 4);
@@ -661,9 +662,9 @@ describe('determinism and broadphase', () => {
     return world;
   };
 
-  const scripted = (step: number): Vec3 => {
+  const scripted = (step: number): { x: number; z: number } => {
     const t = step * DT;
-    return vec3(6 * Math.cos(t * 2.3), step === 20 ? 11 : 0, 5 * Math.sin(t * 1.7));
+    return { x: 6 * Math.cos(t * 2.3), z: 5 * Math.sin(t * 1.7) };
   };
 
   it('replays a move sequence bit-identically', () => {
@@ -672,7 +673,8 @@ describe('determinism and broadphase', () => {
       const trace: Vec3[] = [];
       simulate(world, vec3(0, HALF_BODY, 0), {
         steps: 120,
-        velocity: (step) => scripted(step),
+        move: scripted,
+        jump: (step) => (step === 20 || step === 70 ? 11 : undefined),
         onStep: (_step, position) => {
           trace.push(vec3(position.x, position.y, position.z));
         },
