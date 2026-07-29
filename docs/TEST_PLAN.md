@@ -35,13 +35,22 @@ build step between writing code and testing it.
 | `game-core/stage` | platform motions, beat clock, puzzles, checkpoints, triggers, ranking |
 | `game-core/forms` | registry completeness, category guarantees, switching rules, behaviour hooks |
 | `game-core/camera` | follow settling, collision, landing look-ahead, recentre, reduced motion |
-| `input` | edge detection, deadzone, diagonal clamping, rebinding, touch multi-touch |
-| `audio` | recipe coverage, amplitude ceiling, music layer selection, 432↔440 mapping |
+| `input` | edge detection, deadzone, diagonal clamping, rebinding, touch layout geometry |
+| `game-content` | referential integrity, reachability, secret counts, bestiary coverage |
+
+Planned but **not yet written** — the specialists assigned to them did not run before the session
+hit its usage limit:
+
+| Area | Would cover |
+| --- | --- |
+| `audio` | nothing to test yet; the engine itself is unbuilt |
 | `platform` | quality presets, adaptive controller hysteresis |
 | `persistence` | schema validation, migration, corruption isolation, best-result merging |
-| `game-content` | referential integrity, reachability, secret counts, bestiary coverage |
 | `rendering` | material caching and disposal, particle pooling |
-| `ui` | navigation stack, notification queue, contrast ratios, touch layout geometry |
+| `ui` | navigation stack, notification queue, contrast ratios |
+
+The `platform`, `persistence` and `ui` code is written and typechecked; it is the tests that are
+missing, which is worth being precise about — untested is not the same as absent.
 
 ### Integration
 

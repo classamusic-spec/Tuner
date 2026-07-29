@@ -99,10 +99,28 @@ rule that underpins it.
 Reachable at any time, including mid-combat and mid-cutscene. Resume, Restart from Checkpoint,
 Settings, Accessibility, Return to Sanctuary, Quit. Every cutscene is skippable.
 
-## Verification
+## Implementation status
 
-Store and theme tests assert: the navigation stack pushes and pops correctly and "back" from
+**Built and reachable:** title, pause, settings, accessibility, credits, results, the HUD
+(Coherence ring, charge ring, form, boss bar with phase pips, objective, notifications,
+subtitles), and the touch overlay.
+
+**Designed but not built:** save slots, the World Lattice, stage information, Sanctuary, codex,
+bestiary, upgrades, Composition Mode and the challenge menu. The data behind several of them
+exists — `WORLD_LATTICE`, `KEEPER_MEMORIES`, `LOST_MOTIFS`, the bestiary entries and the save
+schema are all authored and tested — but the screens that would drive them were not written. The
+save-slots entry point in the build says so on screen rather than pretending.
+
+**Written but untested:** the store, theme and primitives have no test file yet.
+
+## What verification will need to cover
+
+When written, the store and theme tests should assert: the navigation stack pushes and pops correctly and "back" from
 the root is a safe no-op; settings persist and notify subscribers; the notification queue
 expires and caps; `textScale` scales the type ramp proportionally; `highContrast` measurably
 raises the computed WCAG contrast ratio and the high-contrast pairing meets at least 4.5:1; and
 `colourblindSafeIcons` guarantees a shape key on every colour-coded token.
+
+The touch-layout assertions in that list **are** written and passing, in
+`packages/input/src/touch.test.ts` — 21 tests covering overlap, safe areas, minimum touch size at
+three scales, left-handed mirroring, hit testing, override clamping and stick vectors.

@@ -101,12 +101,19 @@ Assertions currently in the test suite:
 - `reducedMotion` zeroes FOV boost and shake
 - `highContrast` measurably raises the computed WCAG contrast ratio
 - `colourblindSafeIcons` guarantees a shape key on every colour-coded token
-- `reducedParticles` measurably lowers emitted particle counts
 - Touch layout: no control overlaps, none intrudes on safe-area insets, all meet the minimum
   touch target at every tested viewport and scale
 - Left-handed mode mirrors every control about the viewport centre
 
-Not yet verified, and stated as such: no play-testing with assistive technology, no screen
+Not built, and therefore not verified:
+
+- **The particle system.** `reducedParticles` is stored and passed through, but there is no
+  particle system for it to reduce yet.
+- **Audio.** The engine was never written, so the audio side of every paired cue is silent. The
+  visual side is built and is what makes the game playable — which is the guarantee that
+  mattered, but the pairing is currently one-sided by omission rather than by design.
+
+Also not verified, and stated as such: no play-testing with assistive technology, no screen
 reader pass over the menus, and no verification with players who have the impairments these
 options exist to serve. Those are the checks that would actually validate this work, and they
 have not been done.

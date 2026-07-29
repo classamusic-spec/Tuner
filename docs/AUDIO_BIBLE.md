@@ -87,11 +87,32 @@ guaranteed, it does.
 Mobile lifecycle is handled: audio suspends on background and resumes on return, and the
 context is unlocked only from a real user gesture, as browsers require.
 
-## Verification
 
-Asserted: every `SfxId` has a recipe; no recipe exceeds the amplitude ceiling; no pure-tone
+## Implementation status
+
+**This document describes the design. Not all of it is built.** Read
+`docs/EVIDENCE.md` for what was actually run. The split, stated plainly:
+
+- **Built:** the `AudioEngine` contract and a working null adapter, so the game runs silently
+  without special-casing.
+- **Not built:** the Web Audio engine, `SFX_RECIPES`, the per-form sound families, the adaptive
+  music director, and the 432↔440 retuning described above. The specialist assigned to it never
+  ran — the session hit its usage limit first.
+
+The game is therefore **silent today.** It remains fully playable, and that is not luck: because
+the simulation only ever emits `GameEvents` and the renderer already draws the visual half of
+every cue, silence costs nothing but atmosphere.
+
+Nothing in this document has been verified. When the engine is written, the assertions below are
+what it owes.
+
+## What verification will need to cover
+
+When implemented, assert: every `SfxId` has a recipe; no recipe exceeds the amplitude ceiling; no pure-tone
 recipe sustains past the documented limit; form sound families are distinct; each gameplay
 situation produces the expected dominant music layer; crossfades ease rather than snap and are
 framerate independent; the infection→frequency mapping is exact at both ends and monotonic
 between; generated phrases are deterministic for a fixed seed and stay in scale; and
 `createWebAudioEngine()` does not throw when Web Audio is absent.
+
+None of these run yet.

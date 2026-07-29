@@ -140,6 +140,11 @@ can fire while running, jumping and dashing.
 
 ## VFX
 
+**Status:** the telegraph layer is built — ground-projected timing rings for every telegraphing
+enemy and boss attack. The wider effects library (impact sparks, charge rings, cleanse motes,
+restoration waves) and the pooled particle system are designed here but **not built**; their
+specialist did not run before the session hit its usage limit.
+
 Effects speak the sacred-geometry language: rings, polygons, harmonic lattices. Not sparks and
 smoke.
 

@@ -34,7 +34,8 @@ These hold because of how the code is built, and are covered by tests:
    0.05 m of the same position.
 2. **A backgrounded tab cannot spiral.** A single frame is clamped to 0.25 s and steps per frame
    are capped; excess time is discarded rather than simulated.
-3. **No per-step allocation on the hot path.** Projectiles, particles and effects are pooled;
+3. **No per-step allocation on the hot path.** Projectiles and effects are pooled (the particle
+   system itself is not built yet);
    the state projector reuses two buffers and swaps them; vector maths uses `*Into` variants
    that write into caller-owned targets. `Pool` exposes `createdCount` so tests can assert that
    sustained emit/recycle cycles never grow the pool.
@@ -42,8 +43,9 @@ These hold because of how the code is built, and are covered by tests:
    through refs inside `useFrame`, not through component state. This is the single most
    important rendering rule in the project; violating it would turn every frame into a React
    reconciliation pass.
-5. **Stage geometry is instanced.** A stage has hundreds of pieces; they are grouped by shape
-   and style into `InstancedMesh`. Projectiles, pickups and particles are likewise instanced.
+5. **Stage geometry is instanced.** A stage has hundreds of pieces; they are grouped by shape,
+   style and spatial chunk into `InstancedMesh` — chunked rather than one giant batch, so frustum
+   culling still does something. Projectiles, pickups and telegraph rings are likewise instanced.
 6. **Materials are cached and shared**, keyed by style and tier, with a `dispose()` that frees
    them. Leaked materials are a real memory bug on mobile, so the cache is tested.
 
@@ -58,7 +60,7 @@ Design budgets for a main stage at the High tier:
 | Simulation step | ≤ 2 ms |
 | Live enemies | ≤ 24 |
 | Live player projectiles | 48 (hard cap in `CombatConfig`) |
-| Particles | 2 000 high / 800 medium / 300 low |
+| Particles | 2 000 high / 800 medium / 300 low *(budget defined; system not built)* |
 | Dynamic lights | 3 high / 2 medium / 1 low |
 | Shadow map | 2048 high / 1024 medium / off low |
 
