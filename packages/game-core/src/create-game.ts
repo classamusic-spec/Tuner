@@ -178,6 +178,7 @@ export function createGameCore(config: GameCoreConfig): GameCore {
         stageDef: def,
         physics,
         ids,
+        content,
         difficulty,
         checkpointId: options?.checkpointId ?? null,
         accessibility,
@@ -204,6 +205,24 @@ export function createGameCore(config: GameCoreConfig): GameCore {
       world.stage.puzzles.clear();
       world.stage.triggers.clear();
       world.stage.checkpoints.length = 0;
+      // Re-project so consumers see the emptied world immediately rather than
+      // the last populated frame.
+      projector.project(world);
+      projector.syncPrevious();
+    },
+
+    /** Ends the running cutscene, if it permits skipping. */
+    skipCutscene(): boolean {
+      if (world.cutsceneId === null) return false;
+      const scene = stageDef?.cutscenes.find((c) => c.id === world.cutsceneId);
+      if (scene && scene.skippable === false) return false;
+      world.cutsceneId = null;
+      world.cutsceneRemaining = 0;
+      if (world.camera.mode === 'cinematic') {
+        world.camera.mode = 'follow';
+        world.camera.scriptedRemaining = 0;
+      }
+      return true;
     },
 
     step(fixedDelta: number, input: InputFrame): void {
@@ -221,6 +240,26 @@ export function createGameCore(config: GameCoreConfig): GameCore {
       if (world.cutsceneRemaining > 0) {
         world.cutsceneRemaining = Math.max(0, world.cutsceneRemaining - fixedDelta);
         if (world.cutsceneRemaining === 0) world.cutsceneId = null;
+      }
+
+      // Every cutscene is skippable. A player on their second run should never
+      // be held in a scene they have already watched, so any of the confirm
+      // inputs ends it immediately.
+      if (
+        world.cutsceneId !== null &&
+        (input.buttons.jump.pressed ||
+          input.buttons.interact.pressed ||
+          input.buttons.fire.pressed)
+      ) {
+        const scene = stageDef?.cutscenes.find((c) => c.id === world.cutsceneId);
+        if (!scene || scene.skippable !== false) {
+          world.cutsceneId = null;
+          world.cutsceneRemaining = 0;
+          if (world.camera.mode === 'cinematic') {
+            world.camera.mode = 'follow';
+            world.camera.scriptedRemaining = 0;
+          }
+        }
       }
 
       const ctx = buildContext(input, dt, fixedDelta);

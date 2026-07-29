@@ -108,6 +108,11 @@ describe('headless simulation', () => {
   it('moves the player when movement input is supplied', () => {
     core.loadStage('fallen-sanctuary');
     run(core, 60);
+    // The stage opens on a cutscene that deliberately holds control — the Tuner
+    // is waking up mid-attack. Skip it, as a player would, before asserting on
+    // movement.
+    core.skipCutscene();
+    run(core, 10);
     const start = { ...core.state.player.position };
 
     run(core, 60, (_, previous) => frameWith({ moveY: 1 }, previous));
@@ -129,6 +134,7 @@ describe('headless simulation', () => {
 
     const drive = (instance: GameCore): { x: number; y: number; z: number } => {
       instance.loadStage('fallen-sanctuary');
+      instance.skipCutscene();
       run(instance, 240, (step, previous) =>
         frameWith(
           {
@@ -165,6 +171,7 @@ describe('headless simulation', () => {
         seed: 'framerate',
       });
       instance.loadStage('fallen-sanctuary');
+      instance.skipCutscene();
       run(instance, 120, (_, previous) => frameWith({ moveY: 1 }, previous));
       positions.push({ x: instance.state.player.position.x, z: instance.state.player.position.z });
     }
@@ -187,6 +194,7 @@ describe('headless simulation', () => {
     }
 
     core.loadStage('fallen-sanctuary');
+    core.skipCutscene();
     run(core, 240, (step, previous) =>
       frameWith(
         {
@@ -229,6 +237,7 @@ describe('headless simulation', () => {
 
   it('produces a stage result with a rank and a breakdown', () => {
     core.loadStage('fallen-sanctuary');
+    core.skipCutscene();
     run(core, 300, (_, previous) => frameWith({ moveY: 1 }, previous));
 
     const result = core.computeResult();
@@ -244,6 +253,7 @@ describe('headless simulation', () => {
 
   it('keeps a previous state for the renderer to interpolate against', () => {
     core.loadStage('fallen-sanctuary');
+    core.skipCutscene();
     run(core, 60, (_, previous) => frameWith({ moveY: 1 }, previous));
 
     expect(core.previousState.tick).toBe(core.state.tick - 1);
@@ -260,6 +270,7 @@ describe('headless simulation', () => {
 
   it('does not leak entities across a stage reload', () => {
     core.loadStage('fallen-sanctuary');
+    core.skipCutscene();
     run(core, 120, (_, previous) => frameWith({ moveY: 1, held: ['fire'] }, previous));
 
     core.unloadStage();

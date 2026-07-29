@@ -14,3 +14,20 @@ export * from './config.js';
 export * from './content-types.js';
 export * from './forms.js';
 export * from './game.js';
+export * from './create-game.js';
+export { RESONANCE_FORMS, FORM_WHEEL_ORDER } from './systems/forms-registry.js';
+export {
+  formAtIndex,
+  formCount,
+  formTuningFor,
+  getFormBehaviour,
+  indexOfForm,
+  nextUnlockedForm,
+} from './systems/forms.js';
+export { computeStageResult } from './systems/stage.js';
+export {
+  createCameraState,
+  resolveCameraTransform,
+  type CameraResolveInput,
+  type CameraState,
+} from './systems/camera.js';

@@ -75,6 +75,14 @@ export interface GameCore {
   /** Sends the player back to the active checkpoint. */
   respawn(): void;
 
+  /**
+   * Ends the running cutscene. Returns false when nothing was playing, or when
+   * the scene is explicitly marked unskippable. Every scene in the shipped
+   * content is skippable — a player on a second run must never be held in a
+   * scene they have already watched.
+   */
+  skipCutscene(): boolean;
+
   /** Computes the results for the stage as it currently stands. */
   computeResult(): StageResult | null;
 
