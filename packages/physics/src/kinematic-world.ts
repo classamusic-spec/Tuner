@@ -133,15 +133,17 @@ class KinematicWorld implements PhysicsWorld {
   readonly stats: { readonly colliderCount: number; readonly lastQueryCount: number };
 
   constructor() {
-    const self = this;
-    this.stats = {
-      get colliderCount(): number {
-        return self.list.length;
-      },
-      get lastQueryCount(): number {
-        return self.queryCount;
-      },
-    };
+    // Live getters, so the debug overlay never reads a stale snapshot.
+    const stats = {} as { colliderCount: number; lastQueryCount: number };
+    Object.defineProperty(stats, 'colliderCount', {
+      get: () => this.list.length,
+      enumerable: true,
+    });
+    Object.defineProperty(stats, 'lastQueryCount', {
+      get: () => this.queryCount,
+      enumerable: true,
+    });
+    this.stats = stats;
   }
 
   get colliders(): readonly ColliderHandle[] {
