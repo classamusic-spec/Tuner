@@ -28,6 +28,13 @@ export interface GameCoreConfig {
   /** Forms the player already owns — set when loading a save. */
   readonly unlockedForms?: readonly ResonanceFormId[];
   readonly maxCoherenceBonus?: number;
+  /**
+   * Optional millisecond clock, supplied by the host purely so the debug
+   * overlay can report step cost. The simulation never reads wall-clock time
+   * itself — behaviour must depend only on the fixed step — so leaving this
+   * out simply means `stats.lastStepMs` stays zero.
+   */
+  readonly clock?: () => number;
 }
 
 /** Snapshot of the previous step, so rendering can interpolate. */
