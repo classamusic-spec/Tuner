@@ -506,8 +506,10 @@ class KinematicWorld implements PhysicsWorld {
         if (c.isTrigger) continue;
         if ((c.layer & mask) === 0) continue;
         const sep = this.probe(c, this.pX, this.pY, this.pZ, radius, halfSegment, SCRATCH_NORMAL);
-        if (sep >= 0) continue;
-        const push = -sep + 1e-6;
+        // A contact that is merely touching (within float noise) is fine; only
+        // real overlap is corrected, so a resting body never creeps upward.
+        if (sep >= -1e-9) continue;
+        const push = -sep + 1e-9;
         this.pX += SCRATCH_NORMAL.x * push;
         this.pY += SCRATCH_NORMAL.y * push;
         this.pZ += SCRATCH_NORMAL.z * push;
