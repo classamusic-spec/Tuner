@@ -132,8 +132,22 @@ See `docs/ARCHITECTURE.md` for the full reasoning.
 
 ## Status
 
-See `docs/EVIDENCE.md` for what is playable, what is verified, and what is not. That file records
-observations rather than intentions, and it is the honest answer to "does this work yet".
+**Playable today, in a browser:** title screen → the Fallen Sanctuary → movement, the Auralith's
+full verb set, Detuner encounters, checkpoints, puzzles, the pause menu and the accessibility
+options. Keyboard, gamepad and touch all reach gameplay. Settings persist.
+
+**Verified:** `tsc` clean, `eslint` clean, **415 unit and integration tests**, and **26 Playwright
+tests** against the production build across desktop, tablet-touch and phone-touch.
+
+**Built but not surfaced:** the Fractured Garden, Oru and the Virus Bloom are fully authored and
+their data is tested, but the World Lattice screen that would let you select the stage was not
+built — so only the introductory stage is reachable from the title screen.
+
+**Not built:** the audio engine (the game is silent), the particle and wider VFX library, and the
+save-slot, Sanctuary, codex, upgrade and Composition Mode screens.
+
+`docs/EVIDENCE.md` is the full accounting — what was run, what was not, and what the independent
+critics caught. It records observations rather than intentions.
 
 ## Originality
 

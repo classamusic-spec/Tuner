@@ -65,9 +65,10 @@ Multi-touch is real: moving, looking and pressing a button simultaneously all wo
 touch identifier. Controls are movable, resizable, opacity-adjustable, and a left-handed mode
 mirrors the entire layout.
 
-`packages/ui/src/touch/layout.ts` is the single source of truth for control geometry, and
-`@tuner/input`'s touch source reads from the same maths that draws it — so what the player sees
-and what the game reads can never drift apart.
+`computeTouchLayout` in `packages/input/src/touch.ts` is the single source of truth for control
+geometry. The touch source reads through it and `@tuner/ui`'s overlay draws from it, so what the
+player sees and what the game reads cannot drift apart — a second copy of the geometry in the
+renderer is exactly how a jump button starts "sometimes not working".
 
 Its tests assert, at phone-portrait, phone-landscape, tablet and desktop sizes: no control
 overlaps another, none intrudes into safe-area insets, every control meets the minimum touch
