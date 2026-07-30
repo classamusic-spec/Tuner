@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type { EventBus } from '@tuner/shared';
+import { DETUNED_HZ, type EventBus, type ResonanceFormId } from '@tuner/shared';
 import {
   createMusicDirector,
   createWebAudioEngine,
@@ -67,18 +67,38 @@ export function useAudioBridge(
   useEffect(() => {
     const engine = () => engineRef.current;
 
+    // The equipped ability, for the cue families the event itself does not name
+    // — movement, puzzles, the charge. One simulation step of latency, on a
+    // value that only changes when the player deliberately switches, and the
+    // switch has a cue of its own.
+    const acting = (): ResonanceFormId => core?.state.player.form ?? 'base';
+
     const offs = [
-      events.on('combat:fired', ({ position, form, tier, hz }) => {
-        engine()?.playSfx(tier > 0 ? 'charge-release' : 'pulse-fire', { position, form, hz });
+      events.on('combat:fired', ({ position, owner, form, tier }) => {
+        if (owner === 'enemy') {
+          // A Detuner volley is not the player's attack. It keeps the
+          // archetype's form for timbre but stays on the 440 Hz grid, and never
+          // borrows the charge-release cue.
+          engine()?.playSfx('pulse-fire', { position, form, hz: DETUNED_HZ, volume: 0.8 });
+          return;
+        }
+        // `degree`, not `hz`: the tier transposes the ability's own root rather
+        // than replacing it, so charge level and equipped ability are both
+        // audible at once.
+        engine()?.playSfx(tier > 0 ? 'charge-release' : 'pulse-fire', {
+          position,
+          form,
+          degree: tier,
+        });
       }),
-      events.on('combat:chargeTier', ({ position, hz }) => {
-        engine()?.playSfx('charge-tier', { position, hz });
+      events.on('combat:chargeTier', ({ position, tier }) => {
+        engine()?.playSfx('charge-tier', { position, form: acting(), degree: tier });
       }),
       events.on('combat:burst', ({ position }) => {
-        engine()?.playSfx('burst', { position });
+        engine()?.playSfx('burst', { position, form: acting() });
       }),
-      events.on('combat:hit', ({ position, blocked }) => {
-        engine()?.playSfx(blocked ? 'hit-armour' : 'hit-enemy', { position });
+      events.on('combat:hit', ({ position, form, blocked }) => {
+        engine()?.playSfx(blocked ? 'hit-armour' : 'hit-enemy', { position, form });
       }),
       events.on('combat:enemyCleansed', ({ position }) => {
         engine()?.playSfx('enemy-cleansed', { position });
@@ -87,30 +107,34 @@ export function useAudioBridge(
         engine()?.playSfx('hit-player', { position });
       }),
       events.on('combat:countered', ({ position, success }) => {
-        engine()?.playSfx(success ? 'counter-success' : 'counter-fail', { position });
+        engine()?.playSfx(success ? 'counter-success' : 'counter-fail', {
+          position,
+          form: acting(),
+        });
       }),
       events.on('player:jumped', ({ position, doubleJump }) => {
-        engine()?.playSfx(doubleJump ? 'double-jump' : 'jump', { position });
+        engine()?.playSfx(doubleJump ? 'double-jump' : 'jump', { position, form: acting() });
       }),
       events.on('player:dashed', ({ position }) => {
-        engine()?.playSfx('dash', { position });
+        engine()?.playSfx('dash', { position, form: acting() });
       }),
       events.on('player:landed', ({ position, impactSpeed }) => {
         // A gentle touchdown should not sound like a drop.
-        if (impactSpeed > 6) engine()?.playSfx('land', { position });
+        if (impactSpeed > 6) engine()?.playSfx('land', { position, form: acting() });
       }),
       events.on('player:wallCling', ({ position }) => {
-        engine()?.playSfx('wall-cling', { position });
+        engine()?.playSfx('wall-cling', { position, form: acting() });
       }),
       events.on('player:railAttached', ({ position }) => {
-        engine()?.playSfx('rail-attach', { position });
+        engine()?.playSfx('rail-attach', { position, form: acting() });
       }),
       events.on('player:bounced', ({ position }) => {
-        engine()?.playSfx('bounce', { position });
+        engine()?.playSfx('bounce', { position, form: acting() });
       }),
       events.on('puzzle:noteStruck', ({ position, hz }) => {
-        // The resonator's own pitch, so a puzzle is heard as the chord it is.
-        engine()?.playSfx('puzzle-note', { position, hz });
+        // The resonator's own pitch in the acting ability's colour, so a puzzle
+        // is heard as the chord it is and as the tool being used on it.
+        engine()?.playSfx('puzzle-note', { position, hz, form: acting() });
       }),
       events.on('puzzle:solved', ({ position }) => {
         engine()?.playSfx('puzzle-solve', { position });
@@ -124,27 +148,31 @@ export function useAudioBridge(
       events.on('world:checkpointActivated', ({ position }) => {
         engine()?.playSfx('checkpoint', { position });
       }),
-      events.on('form:switched', () => {
-        engine()?.playSfx('form-switch');
+      events.on('form:switched', ({ to }) => {
+        engine()?.playSfx('form-switch', { form: to });
       }),
-      events.on('form:acquired', () => {
-        engine()?.playSfx('form-acquire');
+      events.on('form:acquired', ({ form }) => {
+        engine()?.playSfx('form-acquire', { form });
       }),
       events.on('boss:phaseChanged', () => {
         engine()?.playSfx('boss-phase');
       }),
       events.on('boss:telegraph', ({ position }) => {
+        // The guardian's own wind-up, deliberately not voiced in the player's
+        // family — an incoming attack must never sound like the player's tool.
         engine()?.playSfx('boss-telegraph', { position });
       }),
       events.on('world:restorationStep', () => {
-        engine()?.playSfx('restoration');
+        // Retuning a guardian is the player's ability acting on it, so this one
+        // is voiced in the acting family.
+        engine()?.playSfx('restoration', { form: acting() });
       }),
     ];
 
     return () => {
       for (const off of offs) off();
     };
-  }, [events]);
+  }, [core, events]);
 
   // Drive the music director from the world, on a slow timer rather than per
   // frame — the score needs to know the situation, not the frame number.

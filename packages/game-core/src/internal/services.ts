@@ -279,6 +279,7 @@ export function damageBoss(
     normal: clone(hitNormal),
     damage: dealt,
     kind,
+    form,
     blocked: false,
     weakness: advantage > 1 || vulnerable,
   });
@@ -348,6 +349,7 @@ export function createSimServices(deps: SimServicesDeps): SimServices {
         projectileId: projectile.id,
         position: clone(projectile.position),
         direction: vec3(dx, dy, dz),
+        owner: projectile.owner,
         form: projectile.form,
         tier: projectile.tier,
         hz: projectile.hz,
@@ -381,6 +383,7 @@ export function createSimServices(deps: SimServicesDeps): SimServices {
         normal: clone(hitNormal),
         damage: dealt,
         kind,
+        form,
         blocked,
         weakness,
       });

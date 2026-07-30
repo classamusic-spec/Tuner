@@ -90,29 +90,62 @@ context is unlocked only from a real user gesture, as browsers require.
 
 ## Implementation status
 
-**This document describes the design. Not all of it is built.** Read
-`docs/EVIDENCE.md` for what was actually run. The split, stated plainly:
+**Built and wired.** An earlier revision of this section said the engine did not exist and the
+game was silent. That was true when it was written and is no longer true; it is corrected here
+rather than quietly deleted, because a status section that has been wrong once is worth being
+sceptical of.
 
-- **Built:** the `AudioEngine` contract and a working null adapter, so the game runs silently
-  without special-casing.
-- **Not built:** the Web Audio engine, `SFX_RECIPES`, the per-form sound families, the adaptive
-  music director, and the 432↔440 retuning described above. The specialist assigned to it never
-  ran — the session hit its usage limit first.
+- **Built:** `SFX_RECIPES` (33 cues), the per-form sound families, `applyFormToRecipe`, the
+  adaptive music director with generated per-region motifs, the 432↔440 retuning, and
+  `createWebAudioEngine()` — a real Web Audio adapter with a bussed graph, a master limiter,
+  positional panning and distance attenuation, look-ahead music scheduling and an analyser feed
+  for the accessibility visualiser. The null adapter is still there for tests and headless runs.
+- **Wired:** `apps/web/src/game/use-audio-bridge.ts` subscribes 23 `GameEvents` to cues, drives
+  the director from the world on a 120 ms timer, moves the listener with the player, unlocks the
+  context on the New Journey click and suspends on background. The game is audible in the browser.
+- **Verified:** 70 tests in `packages/audio` pass — see the coverage list below.
 
-The game is therefore **silent today.** It remains fully playable, and that is not luck: because
-the simulation only ever emits `GameEvents` and the renderer already draws the visual half of
-every cue, silence costs nothing but atmosphere.
+**What is not verified, stated exactly.** The engine tests run against a *stub* Web Audio graph:
+they assert which nodes are created, how parameters are ramped, what is scheduled and when. They
+do not prove anything about how the result sounds, because this build environment has no audio
+device and nobody has listened to it. Every claim in this document about the *character* of a
+sound — that families are "distinguishable by ear", that sustains are comfortable — is enforced
+as a structural proxy (pairwise-distinct timbre signatures, amplitude ceilings, duration caps),
+not by a listening test. Those proxies can be satisfied by a mix that is still unpleasant. A real
+listening pass is outstanding.
 
-Nothing in this document has been verified. When the engine is written, the assertions below are
-what it owes.
+**Gaps in the sound design itself:**
 
-## What verification will need to cover
+- Detuner projectiles reuse the player's `pulse-fire` recipe, voiced in the archetype's form and
+  pitched to 440 Hz. It is distinguishable, but there is no dedicated enemy fire cue.
+- The `voice` bus exists as a level control with no cues routed to it. There is no recorded or
+  synthesised dialogue; dialogue is text and subtitles only.
+- The `ambience` bus carries exactly one cue, the low-Coherence warning drone. There are no
+  per-region ambient beds.
 
-When implemented, assert: every `SfxId` has a recipe; no recipe exceeds the amplitude ceiling; no pure-tone
-recipe sustains past the documented limit; form sound families are distinct; each gameplay
-situation produces the expected dominant music layer; crossfades ease rather than snap and are
-framerate independent; the infection→frequency mapping is exact at both ends and monotonic
-between; generated phrases are deterministic for a fixed seed and stay in scale; and
-`createWebAudioEngine()` does not throw when Web Audio is absent.
+## What the tests cover
 
-None of these run yet.
+`packages/audio` — 21 assertions in `synth.test.ts`, 49 in `music.test.ts`:
+
+Every `SfxId` has exactly one recipe with a matching `id` and a palette key for its visual half;
+no recipe exceeds `MAX_PEAK_AMPLITUDE` with its noise bed included; no pure tone sustains past
+`MAX_PURE_TONE_SECONDS` or loops at all; every envelope fits inside its own duration; player
+pitches sit on the 432 Hz just-intonation grid and infected cues on the 440 Hz one, detuned by
+the same number the shader tints with; the restoration cue glides 440→432; all eight abilities
+are pairwise distinct in timbre signature; `FORM_HARMONIC_DEGREES` mirrors the harmonic degree
+`RESONANCE_FORMS` assigns in game-core (a pinning test — audio cannot import game-core without
+creating a cycle, so the mirror is asserted instead of shared); re-voicing a recipe into a family
+does not breach the ceilings; the infection→frequency mapping is exact at both ends and strictly
+monotonic between; each gameplay situation produces the expected dominant layer, with boss layers
+replacing combat rather than stacking; crossfades ease rather than snap and are framerate
+independent (one 30 Hz step equals two 60 Hz steps); phrases are deterministic per seed, stay in
+scale and never overlap; and `createWebAudioEngine()` returns a fully callable object that
+silently does nothing when `AudioContext` is absent or its construction throws.
+
+Against the stub graph: the bus tree is built and unlocked; the summed master output passes
+through a limiter, and still plays on a host with no compressor; `dispose()` is terminal rather
+than rebuilding a context behind the caller's back; recipes render as oscillators with real
+parameter ramps; sounds pan by listener-relative direction, attenuate with distance and are
+dropped entirely beyond the audible radius; music is scheduled ahead of the audio clock rather
+than note by note; the score retunes with the infection level; and the music bus comes back after
+a `stopMusic` fade rather than resuming into silence.

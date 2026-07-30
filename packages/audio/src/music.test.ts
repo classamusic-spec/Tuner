@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DETUNED_HZ, STAGE_IDS, WORLD_CHORD_HZ, vec3 } from '@tuner/shared';
+import { DETUNED_HZ, STAGE_IDS, WORLD_CHORD_HZ, vec3, type ResonanceFormId } from '@tuner/shared';
 import type { MusicLayer } from './types.js';
-import { detuneCentsForInfection } from './synth.js';
+import { detuneCentsForInfection, harmonicRatio } from './synth.js';
 import {
   DEFAULT_LOW_COHERENCE_THRESHOLD,
   MUSIC_LAYERS,
@@ -578,6 +578,14 @@ class StubPanner extends StubNode {
   readonly pan = new StubParam();
 }
 
+class StubCompressor extends StubNode {
+  readonly threshold = new StubParam();
+  readonly knee = new StubParam();
+  readonly ratio = new StubParam();
+  readonly attack = new StubParam();
+  readonly release = new StubParam();
+}
+
 class StubAnalyser extends StubNode {
   fftSize = 2048;
   smoothingTimeConstant = 0.8;
@@ -602,6 +610,7 @@ class StubContext {
   readonly panners: StubPanner[] = [];
   readonly bufferSources: StubBufferSource[] = [];
   analyser: StubAnalyser | null = null;
+  compressor: StubCompressor | null = null;
   closed = false;
 
   createGain(): StubGain {
@@ -634,6 +643,11 @@ class StubContext {
   createAnalyser(): StubAnalyser {
     const node = new StubAnalyser();
     this.analyser = node;
+    return node;
+  }
+  createDynamicsCompressor(): StubCompressor {
+    const node = new StubCompressor();
+    this.compressor = node;
     return node;
   }
   async resume(): Promise<void> {
@@ -674,6 +688,79 @@ describe('the Web Audio engine against a stub graph', () => {
     expect(ctx.closed).toBe(true);
   });
 
+  /**
+   * `MAX_PEAK_AMPLITUDE` caps one voice. Twenty-four of them plus nine music
+   * layers sum well past full scale, and the destination hard-clips when they
+   * do, so the master path needs a limiter — and the analyser must sit after it,
+   * or the accessibility visualiser reports a level nobody hears.
+   */
+  it('limits the summed master output and measures the limited signal', async () => {
+    const { engine, ctx } = stubEngine();
+    await engine.unlock();
+    const limiter = ctx.compressor;
+    expect(limiter, 'no limiter on the master path').not.toBeNull();
+    expect(limiter?.threshold.value).toBeLessThan(0);
+    expect(limiter?.ratio.value).toBeGreaterThan(1);
+    expect(limiter?.attack.value).toBeGreaterThan(0);
+
+    const master = ctx.gains[0];
+    expect(master?.outputs).toContain(limiter);
+    expect(limiter?.outputs).toContain(ctx.analyser);
+    expect(ctx.analyser?.outputs).toContain(ctx.destination);
+    // Nothing bypasses the limiter straight into the analyser.
+    expect(master?.outputs).not.toContain(ctx.analyser);
+    engine.dispose();
+  });
+
+  it('still plays on a host with no compressor, straight into the analyser', async () => {
+    const bare = new StubContext();
+    // An older webview: everything else is present, the compressor is not.
+    (bare as { createDynamicsCompressor?: unknown }).createDynamicsCompressor = undefined;
+    const engine = createWebAudioEngine({
+      createContext: () => bare as unknown as BaseAudioContextLike,
+    });
+    await engine.unlock();
+    expect(bare.compressor).toBeNull();
+    expect(bare.gains[0]?.outputs).toContain(bare.analyser);
+    const before = bare.oscillators.length;
+    engine.playSfx('pulse-fire');
+    expect(bare.oscillators.length).toBeGreaterThan(before);
+    engine.dispose();
+  });
+
+  it('treats dispose as terminal rather than rebuilding a context behind our back', async () => {
+    const { engine, ctx } = stubEngine();
+    await engine.unlock();
+    engine.dispose();
+    expect(ctx.closed).toBe(true);
+
+    // A late event from a listener that outlived teardown must not resurrect a
+    // whole AudioContext that nothing will ever close.
+    const contexts: StubContext[] = [];
+    const guarded = createWebAudioEngine({
+      createContext: () => {
+        const created = new StubContext();
+        contexts.push(created);
+        return created as unknown as BaseAudioContextLike;
+      },
+    });
+    await guarded.unlock();
+    expect(contexts).toHaveLength(1);
+    guarded.dispose();
+    guarded.playSfx('pulse-fire');
+    guarded.resume();
+    await guarded.unlock();
+    guarded.setMusicState({
+      stage: 'fractured-garden',
+      layers: { world: 1 },
+      detune: 0,
+      intensity: 0,
+    });
+    expect(contexts).toHaveLength(1);
+    expect(guarded.isUnlocked).toBe(false);
+    expect(guarded.getVisualiserLevels()).toEqual({ beat: 0, bass: 0, lead: 0 });
+  });
+
   it('renders a recipe as oscillators with a real envelope', async () => {
     const { engine, ctx } = stubEngine();
     await engine.unlock();
@@ -708,6 +795,38 @@ describe('the Web Audio engine against a stub graph', () => {
     engine.playSfx('pulse-fire', { position: vec3(0, 0, -10) });
     const ahead = ctx.panners[ctx.panners.length - 1];
     expect(Math.abs(ahead?.pan.value ?? 1)).toBeLessThan(0.001);
+    engine.dispose();
+  });
+
+  it('keeps a form audible as pitch, not only as timbre', async () => {
+    // The bug this pins: sending a charge tier as `hz` overrode the form's own
+    // root, so every ability fired at the same pitch and differed only in
+    // waveform. `degree` transposes the root instead of replacing it.
+    const { engine, ctx } = stubEngine();
+    await engine.unlock();
+
+    const rootFor = (form: ResonanceFormId, degree: number): number => {
+      const before = ctx.oscillators.length;
+      engine.playSfx('pulse-fire', { form, degree });
+      const created = ctx.oscillators.slice(before);
+      const first = created[0];
+      expect(first).toBeDefined();
+      return first?.frequency.value ?? 0;
+    };
+
+    // Two abilities at the same charge tier must not land on the same pitch.
+    const echoAtRest = rootFor('echo', 0);
+    const emberAtRest = rootFor('ember', 0);
+    expect(Math.abs(echoAtRest - emberAtRest)).toBeGreaterThan(1);
+
+    // And a tier must move each of them by the same interval, so the charge
+    // reads identically whichever ability is equipped.
+    const echoCharged = rootFor('echo', 4);
+    const emberCharged = rootFor('ember', 4);
+    const interval = harmonicRatio(4);
+    expect(echoCharged / echoAtRest).toBeCloseTo(interval, 5);
+    expect(emberCharged / emberAtRest).toBeCloseTo(interval, 5);
+
     engine.dispose();
   });
 

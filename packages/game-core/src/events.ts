@@ -7,7 +7,7 @@ import type {
   StageId,
   Vec3,
 } from '@tuner/shared';
-import type { MovementState, StagePhase, StageResult } from './state.js';
+import type { MovementState, ProjectileOwner, StagePhase, StageResult } from './state.js';
 
 /**
  * Presentation events.
@@ -34,6 +34,9 @@ export interface GameEvents {
     projectileId: EntityId;
     position: Vec3;
     direction: Vec3;
+    /** Whose shot this is. Without it a listener voices a Detuner volley as the
+     *  player's own attack, which is what audio did before this field existed. */
+    owner: ProjectileOwner;
     form: ResonanceFormId;
     tier: number;
     hz: number;
@@ -53,6 +56,8 @@ export interface GameEvents {
     normal: Vec3;
     damage: number;
     kind: DamageKind;
+    /** The ability that landed the hit, so the impact is voiced in its family. */
+    form: ResonanceFormId;
     /** True when armour absorbed the hit — the renderer shows a deflect spark. */
     blocked: boolean;
     /** True when this damage channel was especially effective. */

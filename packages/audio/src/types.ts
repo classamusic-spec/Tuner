@@ -103,6 +103,16 @@ export interface PlaySfxOptions {
   readonly hz?: number;
   /** Selects the acting form's sound family. */
   readonly form?: ResonanceFormId;
+  /**
+   * Transposes the pitch up by a just-intonation harmonic degree, on top of
+   * whatever root `form` or `hz` selected.
+   *
+   * This exists so a charge tier and an ability can both be audible at once.
+   * Sending the tier as `hz` instead would silence the form's own pitch, since
+   * `hz` replaces the root rather than moving it — the form would survive only
+   * as timbre.
+   */
+  readonly degree?: number;
 }
 
 export interface AudioEngine {

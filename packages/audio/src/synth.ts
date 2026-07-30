@@ -870,6 +870,15 @@ export function getSfxRecipe(id: SfxId): SfxRecipe {
  * is audible without looking at the HUD. Pitches are just-intonation degrees of
  * the World Chord; no two families share a pitch, a waveform/filter pairing or
  * a brightness.
+ *
+ * `degree` is **not** a free choice. `@tuner/game-core` already publishes one
+ * canonical pitch per form as `RESONANCE_FORMS[id].tuning.harmonicDegree`, and
+ * these values mirror it exactly. Audio cannot import that table — game-core
+ * depends on this package, so reading it back would be a cycle — hence the
+ * mirror plus {@link FORM_HARMONIC_DEGREES}, which the tests pin so a future
+ * divergence fails loudly instead of quietly making a form sound like the wrong
+ * note. Only `octave` is ours to pick, and it is what separates the dark forms
+ * from the brilliant ones.
  */
 export interface FormSoundFamily {
   readonly form: ResonanceFormId;
@@ -902,8 +911,30 @@ interface FamilyDraft {
   readonly character: string;
 }
 
+/**
+ * The canonical harmonic degree of every form, mirrored from
+ * `RESONANCE_FORMS[id].tuning.harmonicDegree` in `@tuner/game-core`.
+ *
+ * Exported so the mirror is assertable rather than buried in a table.
+ */
+export const FORM_HARMONIC_DEGREES: Readonly<Record<ResonanceFormId, number>> = Object.freeze({
+  base: 0,
+  echo: 4,
+  prism: 2,
+  tidal: 3,
+  ember: 6,
+  choir: 5,
+  bloom: 1,
+  silence: 7,
+  celestial: 8,
+});
+
 function family(form: ResonanceFormId, draft: FamilyDraft): FormSoundFamily {
-  const rootHz = trueHz(draft.degree, draft.octave);
+  // `harmonicRatio` rather than `trueHz`: `celestial` sits on degree 8 — the
+  // octave wrap — and `trueHz` mirrors shared's `harmonicHz`, which folds
+  // degree 8 back onto the root without raising the octave. The two agree for
+  // every degree below the octave, which is all the recipes use.
+  const rootHz = WORLD_CHORD_HZ * harmonicRatio(draft.degree) * Math.pow(2, draft.octave);
   return {
     form,
     degree: draft.degree,
@@ -923,7 +954,7 @@ function family(form: ResonanceFormId, draft: FamilyDraft): FormSoundFamily {
 export const FORM_SOUND_FAMILIES: Readonly<Record<ResonanceFormId, FormSoundFamily>> = Object.freeze(
   {
     base: family('base', {
-      degree: 0,
+      degree: FORM_HARMONIC_DEGREES.base,
       octave: 0,
       wave: 'sine',
       filter: 'lowpass',
@@ -934,7 +965,7 @@ export const FORM_SOUND_FAMILIES: Readonly<Record<ResonanceFormId, FormSoundFami
       character: 'plain, centred, unadorned',
     }),
     echo: family('echo', {
-      degree: 1,
+      degree: FORM_HARMONIC_DEGREES.echo,
       octave: 0,
       wave: 'triangle',
       filter: 'lowpass',
@@ -945,7 +976,7 @@ export const FORM_SOUND_FAMILIES: Readonly<Record<ResonanceFormId, FormSoundFami
       character: 'soft repeats, rounded attack',
     }),
     prism: family('prism', {
-      degree: 2,
+      degree: FORM_HARMONIC_DEGREES.prism,
       octave: 1,
       wave: 'square',
       filter: 'highpass',
@@ -956,7 +987,7 @@ export const FORM_SOUND_FAMILIES: Readonly<Record<ResonanceFormId, FormSoundFami
       character: 'glassy, splitting, edge-lit',
     }),
     tidal: family('tidal', {
-      degree: 3,
+      degree: FORM_HARMONIC_DEGREES.tidal,
       octave: 0,
       wave: 'sine',
       filter: 'bandpass',
@@ -967,7 +998,7 @@ export const FORM_SOUND_FAMILIES: Readonly<Record<ResonanceFormId, FormSoundFami
       character: 'liquid, sustaining, undertow',
     }),
     ember: family('ember', {
-      degree: 4,
+      degree: FORM_HARMONIC_DEGREES.ember,
       octave: 0,
       wave: 'sawtooth',
       filter: 'lowpass',
@@ -978,7 +1009,7 @@ export const FORM_SOUND_FAMILIES: Readonly<Record<ResonanceFormId, FormSoundFami
       character: 'crackling, sudden, forward',
     }),
     choir: family('choir', {
-      degree: 5,
+      degree: FORM_HARMONIC_DEGREES.choir,
       octave: 1,
       wave: 'triangle',
       filter: 'bandpass',
@@ -989,7 +1020,7 @@ export const FORM_SOUND_FAMILIES: Readonly<Record<ResonanceFormId, FormSoundFami
       character: 'stacked voices, breathy body',
     }),
     bloom: family('bloom', {
-      degree: 6,
+      degree: FORM_HARMONIC_DEGREES.bloom,
       octave: 0,
       wave: 'triangle',
       filter: 'notch',
@@ -1000,8 +1031,10 @@ export const FORM_SOUND_FAMILIES: Readonly<Record<ResonanceFormId, FormSoundFami
       character: 'opening, wide, growing',
     }),
     silence: family('silence', {
-      degree: 0,
-      octave: -1,
+      degree: FORM_HARMONIC_DEGREES.silence,
+      // Two octaves down, so the canonical degree still lands at 216 Hz — an
+      // octave below the World Chord, where "felt more than heard" lives.
+      octave: -2,
       wave: 'sine',
       filter: 'lowpass',
       filterHz: 480,
@@ -1011,7 +1044,9 @@ export const FORM_SOUND_FAMILIES: Readonly<Record<ResonanceFormId, FormSoundFami
       character: 'subtractive, felt more than heard',
     }),
     celestial: family('celestial', {
-      degree: 7,
+      // Degree 8 is the octave wrap, so one octave of lift puts the full chord
+      // two octaves above the root — the brightest thing in the game.
+      degree: FORM_HARMONIC_DEGREES.celestial,
       octave: 1,
       wave: 'sawtooth',
       filter: 'highpass',

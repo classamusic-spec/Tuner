@@ -1,4 +1,4 @@
-import type { EventBus } from '@tuner/shared';
+import { type EventBus } from '@tuner/shared';
 import { type AudioEngine } from '@tuner/audio';
 import type { GameCore, GameEvents } from '@tuner/game-core';
 export interface AudioBridge {

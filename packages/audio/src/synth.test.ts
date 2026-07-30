@@ -8,6 +8,7 @@ import {
 } from '@tuner/shared';
 import type { SfxId } from './types.js';
 import {
+  FORM_HARMONIC_DEGREES,
   FORM_SOUND_FAMILIES,
   FULL_INFECTION_CENTS,
   MAX_PEAK_AMPLITUDE,
@@ -259,8 +260,50 @@ describe('per-form sound families', () => {
       expect(family.rootHz).toBeLessThan(20000);
       expect(family.filterHz).toBeGreaterThan(20);
       expect(family.noise).toBeLessThanOrEqual(1);
-      expect(family.rootHz).toBeCloseTo(trueHz(family.degree, family.octave), 8);
+      expect(family.rootHz).toBeCloseTo(
+        WORLD_CHORD_HZ * harmonicRatio(family.degree) * Math.pow(2, family.octave),
+        8,
+      );
     }
+  });
+
+  /**
+   * The load-bearing one. `@tuner/game-core` owns the canonical pitch of every
+   * form as `RESONANCE_FORMS[id].tuning.harmonicDegree`; this package cannot
+   * import it (game-core depends on audio, so it would be a cycle) and so keeps
+   * a mirror. If the two ever drift, a form sounds like a note the simulation
+   * says it is not — audible nonsense in a game about pitch, and invisible to
+   * every other test here, because they only check internal distinctness.
+   */
+  it('mirrors the harmonic degree game-core assigns to each form', () => {
+    const canonical: Readonly<Record<ResonanceFormId, number>> = {
+      base: 0,
+      echo: 4,
+      prism: 2,
+      tidal: 3,
+      ember: 6,
+      choir: 5,
+      bloom: 1,
+      silence: 7,
+      celestial: 8,
+    };
+    for (const form of RESONANCE_FORM_IDS) {
+      expect(FORM_HARMONIC_DEGREES[form], `${form} degree`).toBe(canonical[form]);
+      expect(formSoundFamily(form).degree, `${form} family degree`).toBe(canonical[form]);
+    }
+    // game-core asserts its nine degrees are distinct; so must the mirror.
+    expect(new Set(Object.values(canonical)).size).toBe(RESONANCE_FORM_IDS.length);
+  });
+
+  it('keeps every form on its own pitch despite the octave wrap at degree 8', () => {
+    // Degrees 7 and 8 share a ratio (the table carries both unison and octave),
+    // and degree 8 folds onto the root, so silence/celestial/base could all
+    // collide. The chosen octaves are what keep them apart.
+    const pitches = RESONANCE_FORM_IDS.map((id) => formSoundFamily(id).rootHz);
+    expect(new Set(pitches).size).toBe(RESONANCE_FORM_IDS.length);
+    expect(formSoundFamily('silence').rootHz).toBeCloseTo(216, 9);
+    expect(formSoundFamily('celestial').rootHz).toBeCloseTo(1728, 9);
+    expect(formSoundFamily('base').rootHz).toBe(WORLD_CHORD_HZ);
   });
 
   it('places Silence Field at the dark end and World Chord at the bright end', () => {

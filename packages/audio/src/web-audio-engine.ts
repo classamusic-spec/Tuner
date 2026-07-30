@@ -60,7 +60,7 @@ import {
 // Tuning knobs
 // ---------------------------------------------------------------------------
 
-/** Distance at which a positional sound has fallen to half power. */
+/** Distance at which a positional sound has fallen to half amplitude. */
 const REFERENCE_DISTANCE = 9;
 /** Beyond this a sound is not scheduled at all. */
 const MAX_AUDIBLE_DISTANCE = 70;
@@ -72,6 +72,19 @@ const PAN_WIDTH = 0.85;
 const LAYER_AUDIBLE_FLOOR = 0.02;
 const NOISE_BUFFER_SECONDS = 2;
 const LEVEL_RAMP_SECONDS = 0.05;
+
+/**
+ * Master limiter. `MAX_PEAK_AMPLITUDE` caps a *single* voice; nothing stops
+ * twenty-four of them plus nine music layers from summing past full scale, and
+ * Web Audio's destination hard-clips when they do — a crowd fight would crackle.
+ * These settings sit above anything normal play reaches, so the limiter is a
+ * safety net rather than a compressor in the signal path.
+ */
+const LIMITER_THRESHOLD_DB = -4;
+const LIMITER_KNEE_DB = 2;
+const LIMITER_RATIO = 12;
+const LIMITER_ATTACK_SECONDS = 0.004;
+const LIMITER_RELEASE_SECONDS = 0.2;
 
 export interface WebAudioEngineOptions {
   readonly levels?: Partial<AudioLevels>;
@@ -139,7 +152,10 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
   let unlocked = false;
 
   let master: GainNode | null = null;
+  let limiter: DynamicsCompressorNode | null = null;
   let analyser: AnalyserNode | null = null;
+  /** Terminal once `dispose()` has run, so a late call cannot build a new context. */
+  let disposed = false;
   const busGains = new Map<MixBus, GainNode>();
   let noiseBuffer: AudioBuffer | null = null;
   let pinkBuffer: AudioBuffer | null = null;
@@ -194,6 +210,7 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
   };
 
   const ensureContext = (): BaseAudioContextLike | null => {
+    if (disposed) return null;
     if (ctx || failed) return ctx;
     try {
       const created = options.createContext ? options.createContext() : ctor ? new ctor() : null;
@@ -209,7 +226,22 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
       analyser.smoothingTimeConstant = 0.65;
       timeDomain = new Uint8Array(analyser.fftSize);
       frequencyDomain = new Uint8Array(analyser.frequencyBinCount);
-      master.connect(analyser);
+      // master -> limiter -> analyser -> destination. The analyser sits after
+      // the limiter so the accessibility visualiser reports what the player
+      // actually hears rather than the pre-limit sum.
+      if (typeof created.createDynamicsCompressor === 'function') {
+        limiter = created.createDynamicsCompressor();
+        limiter.threshold.value = LIMITER_THRESHOLD_DB;
+        limiter.knee.value = LIMITER_KNEE_DB;
+        limiter.ratio.value = LIMITER_RATIO;
+        limiter.attack.value = LIMITER_ATTACK_SECONDS;
+        limiter.release.value = LIMITER_RELEASE_SECONDS;
+        master.connect(limiter);
+        limiter.connect(analyser);
+      } else {
+        // A host without a compressor still plays; it just has no safety net.
+        master.connect(analyser);
+      }
       analyser.connect(created.destination);
       for (const bus of BUSES) {
         const gain = created.createGain();
@@ -224,6 +256,7 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
       failed = true;
       ctx = null;
       master = null;
+      limiter = null;
       analyser = null;
       busGains.clear();
       return null;
@@ -371,9 +404,11 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
     const rate = Math.max(0.25, Math.min(4, opts?.rate ?? 1));
     // A form re-voices the timbre; an explicit `hz` then overrides the pitch,
     // which is how a resonator pillar sounds its own degree in the acting
-    // form's colour.
+    // form's colour. `degree` transposes whichever root won, so a charge tier
+    // rides on top of the form's pitch instead of erasing it.
     const voiced = opts?.form && opts.form !== 'base' ? applyFormToRecipe(recipe, opts.form) : recipe;
-    const rootHz = (opts?.hz ?? voiced.frequency.startHz) * rate;
+    const transpose = opts?.degree === undefined ? 1 : harmonicRatio(opts.degree);
+    const rootHz = (opts?.hz ?? voiced.frequency.startHz) * transpose * rate;
     const glideRatio =
       voiced.frequency.startHz > 0 ? voiced.frequency.endHz / voiced.frequency.startHz : 1;
     const endHz = rootHz * glideRatio;
@@ -866,6 +901,9 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
     },
 
     dispose() {
+      // Terminal. Without the flag a stray `playSfx` or `resume` after teardown
+      // would build a whole new AudioContext that nothing ever closes.
+      disposed = true;
       stopScheduler();
       for (const voice of [...activeVoices]) {
         disposeVoice(voice);
@@ -876,6 +914,7 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
       const context = ctx;
       ctx = null;
       master = null;
+      limiter = null;
       analyser = null;
       busGains.clear();
       noiseBuffer = null;
