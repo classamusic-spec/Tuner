@@ -644,6 +644,57 @@ describe('lighting palette', () => {
     );
   });
 
+  it('scatters more light when detuned, rather than simply less of it', () => {
+    /*
+      The assertion the palette was missing, and a screenshot found.
+
+      A detuned region is meant to read as *scattered*: a flat, sourceless,
+      sick wash with a weak sun in it. The test above says exactly that, and
+      passed — but it measured `hemisphereIntensity + ambientIntensity`, which
+      are multipliers, not light. The fill colours were nearly black, so a
+      detuned region nominally carrying 1.3 units of wash delivered less actual
+      illumination than a tuned one carrying 0.55.
+
+      The result shipped: terraces reading as black slabs and a survivor's legs
+      vanishing into the floor she was standing on. Oppressive is the intent.
+      Unreadable is a bug, and only weighting intensity by the luminance of the
+      colour it is applied to can tell the two apart.
+    */
+    const resolved = createResolvedAmbience();
+    const colours = createLightingColours();
+
+    const washNow = (): number =>
+      luminance(colours.skyFill) * colours.hemisphereIntensity +
+      luminance(colours.ambient) * colours.ambientIntensity;
+
+    resolveAmbience(AMBIENCE, 0, resolved);
+    resolveLightingColours(resolved, 0, colours);
+    const sickWash = washNow();
+    const sickKeyLight = colours.keyIntensity * luminance(colours.key);
+    const sickFill = colours.skyFill.clone();
+
+    resolveAmbience(AMBIENCE, 1, resolved);
+    resolveLightingColours(resolved, 1, colours);
+    const wellWash = washNow();
+
+    // The whole claim, in one line: a sick sky puts *more* light everywhere,
+    // from nowhere in particular. That is what makes it look like fog and not
+    // like night.
+    expect(sickWash, 'a detuned region scatters less light than a tuned one').toBeGreaterThan(
+      wellWash * 1.3,
+    );
+
+    // And it must still be the wrong colour. Fixing legibility by washing the
+    // violet out would trade one failure for a worse one.
+    const [r, g, b] = srgb(sickFill);
+    expect(b, 'the detuned fill stopped being cold').toBeGreaterThan(g);
+    expect(r, 'the detuned fill stopped being violet').toBeGreaterThan(g * 0.95);
+
+    // A floor on the fill is worthless if it flattens everything into one
+    // value: a lit face and a shadowed one still have to differ.
+    expect(sickKeyLight).toBeGreaterThan(sickWash * 1.8);
+  });
+
   it('derives a violet mid band and a magenta haze that the restoration drains', () => {
     const resolved = createResolvedAmbience();
 

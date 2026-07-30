@@ -202,6 +202,9 @@ export interface AdventureRuntime {
    */
   interior: boolean;
 
+  /** Reused NPC projection. Stable objects; see `projectNpcViews`. */
+  readonly npcViews: MutableNpcView[];
+
   /** Reused snapshot buffers, so a step allocates nothing. */
   readonly firedTriggers: Set<string>;
   readonly solvedPuzzles: Set<string>;
@@ -248,6 +251,7 @@ export function createAdventureRuntime(content: AdventureContent = {}): Adventur
     interactionTarget: null,
     restorationAnnounced: false,
     interior: false,
+    npcViews: [],
     firedTriggers: new Set(),
     solvedPuzzles: new Set(),
   };
@@ -612,7 +616,20 @@ function faceTowards(ctx: SimContext, npc: MutableNpc, target: Vec3): void {
   const dx = target.x - npc.position.x;
   const dz = target.z - npc.position.z;
   if (Math.abs(dx) < 1e-5 && Math.abs(dz) < 1e-5) return;
-  npc.yaw = moveTowardsAngle(npc.yaw, Math.atan2(dx, dz), NPC_TURN_SPEED * ctx.rawDt);
+  npc.yaw = moveTowardsAngle(npc.yaw, yawTowards(dx, dz), NPC_TURN_SPEED * ctx.rawDt);
+}
+
+/**
+ * Yaw that points a body along `(dx, dz)`.
+ *
+ * A yaw of zero faces **−Z** in this game — `forward(yaw) = (−sin y, −cos y)`,
+ * the convention `movement.ts` documents and the renderer applies straight to
+ * `rotation.y`. So the negated arguments are the whole point, not a typo:
+ * `atan2(dx, dz)` is the same angle turned exactly 180°, which had every
+ * survivor greeting the player with the back of their head.
+ */
+export function yawTowards(dx: number, dz: number): number {
+  return Math.atan2(-dx, -dz);
 }
 
 /** Walks toward a point. Returns true when geometry blocked the move. */
@@ -624,7 +641,7 @@ function walkTowards(ctx: SimContext, npc: MutableNpc, target: Vec3, speed: numb
     settle(ctx, npc);
     return false;
   }
-  npc.yaw = moveTowardsAngle(npc.yaw, Math.atan2(dx, dz), NPC_TURN_SPEED * ctx.rawDt);
+  npc.yaw = moveTowardsAngle(npc.yaw, yawTowards(dx, dz), NPC_TURN_SPEED * ctx.rawDt);
   return moveNpc(ctx, npc, (dx / length) * speed, (dz / length) * speed);
 }
 
@@ -854,23 +871,64 @@ export interface NpcView {
   readonly speaking: boolean;
 }
 
-export function projectNpcViews(runtime: AdventureRuntime): NpcView[] {
+/** The same shape, writable, for the projection to fill in place. */
+type MutableNpcView = { -readonly [K in keyof NpcView]: NpcView[K] };
+
+/**
+ * Projects the people, into the *same* objects every step.
+ *
+ * The stability is the point, not an optimisation. `TunerScene` deliberately
+ * never re-renders from gameplay — a game that reconciles React sixty times a
+ * second spends its frame budget on reconciliation — so a React prop holding
+ * freshly allocated views would be captured once at mount and never updated
+ * again. Villagers would stand frozen wherever they happened to be when the
+ * region loaded, and Sava, who patrols her water round, would drift away from
+ * her own body.
+ *
+ * Returning stable objects whose fields change is how `WorldState` already
+ * works. Consumers read them inside `useFrame` and always see the current step.
+ *
+ * The roster is rebuilt only when it changes size, which in practice means once
+ * per region load.
+ */
+export function projectNpcViews(runtime: AdventureRuntime): readonly NpcView[] {
   const speakingId = isDialogueActive(runtime.dialogue) ? runtime.dialogue.npcId : null;
-  const out: NpcView[] = [];
-  for (const npc of runtime.npcs) {
-    out.push({
-      id: npc.id,
-      displayName: npc.displayName,
-      appearance: npc.appearance,
-      position: { x: npc.position.x, y: npc.position.y, z: npc.position.z },
-      yaw: npc.yaw,
-      routine: npc.routine.kind,
-      present: npc.present,
-      restored: npc.restored,
-      speaking: speakingId === npc.id,
-    });
+  const views = runtime.npcViews;
+
+  if (views.length !== runtime.npcs.length) {
+    views.length = 0;
+    for (const npc of runtime.npcs) {
+      views.push({
+        id: npc.id,
+        displayName: npc.displayName,
+        appearance: npc.appearance,
+        position: vec3(npc.position.x, npc.position.y, npc.position.z),
+        yaw: npc.yaw,
+        routine: npc.routine.kind,
+        present: npc.present,
+        restored: npc.restored,
+        speaking: speakingId === npc.id,
+      });
+    }
+    return views;
   }
-  return out;
+
+  for (let i = 0; i < views.length; i++) {
+    const npc = runtime.npcs[i];
+    const view = views[i];
+    if (!npc || !view) continue;
+    // `appearance` and `restored` change when a region is restored; `routine`
+    // and `yaw` change as people go about their day. All of them are read every
+    // frame, so all of them are refreshed every step.
+    view.appearance = npc.appearance;
+    set(view.position, npc.position.x, npc.position.y, npc.position.z);
+    view.yaw = npc.yaw;
+    view.routine = npc.routine.kind;
+    view.present = npc.present;
+    view.restored = npc.restored;
+    view.speaking = speakingId === npc.id;
+  }
+  return views;
 }
 
 /**

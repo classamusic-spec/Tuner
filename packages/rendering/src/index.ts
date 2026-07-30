@@ -23,6 +23,9 @@ export * from './stage-geometry.js';
 export * from './character/animation.js';
 export { TunerCharacter, type TunerCharacterProps } from './character/tuner.js';
 export { Auralith, type AuralithProps } from './character/auralith.js';
+export * from './character/villager-appearance.js';
+export { Villager, type VillagerProps } from './character/villager.js';
+export * from './vfx/index.js';
 export {
   BossModel,
   DetunerCreature,

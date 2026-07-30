@@ -74,10 +74,10 @@ const AIR = {
   /** A detuned region's bleached, faintly violet key light. */
   sickKey: '#b9a8d8',
   /** Hemisphere sky term: cold both ways, bluer when tuned. */
-  skyFillDetuned: '#3a3272',
+  skyFillDetuned: '#5d5aa8',
   skyFillTuned: '#4f8ae0',
   /** Hemisphere ground bounce: dead violet, or warm stone. */
-  groundDetuned: '#2a1a3e',
+  groundDetuned: '#4e3866',
   groundTuned: '#8a6f47',
   /** The travelling resonance fill that follows the player. */
   fillDetuned: '#c23bd8',
@@ -295,7 +295,7 @@ export function resolveLightingColours(
   target.hemisphereIntensity = lerp(1.0, 0.45, t);
 
   target.ambient.copy(resolved.fogColour);
-  target.ambientIntensity = lerp(0.3, 0.1, t);
+  target.ambientIntensity = lerp(0.38, 0.1, t);
 
   target.resonance.copy(cachedColour(AIR.fillDetuned)).lerp(cachedColour(AIR.fillTuned), t);
   // A gold kiss at the very end, so a fully restored region reads as cyan-gold

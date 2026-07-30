@@ -35,6 +35,7 @@ import { createSimServices } from '../internal/services.js';
 import type { MutablePlayer, MutableWorld } from '../internal/world.js';
 import {
   INTERACT_REACH,
+  yawTowards,
   addAdventureContent,
   adventureRuntimeFor,
   adventureSystem,
@@ -1785,5 +1786,50 @@ describe('adventure: determinism', () => {
 
     expect(snapshot(a.runtime)).toBe(snapshot(b.runtime));
     expect(snapshot(c.runtime)).not.toBe(snapshot(a.runtime));
+  });
+});
+
+describe('which way a survivor faces', () => {
+  /*
+    This whole file passed with `faceTowards` turned exactly 180° out, because
+    nothing here compared a yaw against the direction it is supposed to mean.
+    Every survivor greeted the player with the back of her head, and the first
+    screenshot of a conversation is what found it.
+
+    `movement.ts` documents the convention: a yaw of zero faces −Z, so
+    `forward(yaw) = (−sin yaw, −cos yaw)`. That formula is written out here
+    rather than imported, so this asserts against the documented rule instead of
+    against whatever the code happens to do.
+  */
+  const forward = (yaw: number) => ({ x: -Math.sin(yaw), z: -Math.cos(yaw) });
+
+  it('points a body at what it is facing, on all four axes', () => {
+    const cases = [
+      { dx: 0, dz: -1, name: 'north (−Z), the zero-yaw direction' },
+      { dx: 0, dz: 1, name: 'south (+Z)' },
+      { dx: 1, dz: 0, name: 'east (+X)' },
+      { dx: -1, dz: 0, name: 'west (−X)' },
+      { dx: -5, dz: 12, name: 'an off-axis bearing' },
+    ];
+    for (const { dx, dz, name } of cases) {
+      const f = forward(yawTowards(dx, dz));
+      const span = Math.hypot(dx, dz);
+      expect(f.x, name).toBeCloseTo(dx / span, 6);
+      expect(f.z, name).toBeCloseTo(dz / span, 6);
+    }
+  });
+
+  it('agrees with the renderer, which has its own copy of the same rule', () => {
+    // `@tuner/rendering` cannot import this module's internals, so the two hold
+    // the convention independently. If they ever disagree, a survivor's body and
+    // her head look in opposite directions.
+    for (const [dx, dz] of [
+      [1, 0],
+      [0, 1],
+      [-3, 4],
+      [7, -2],
+    ] as const) {
+      expect(yawTowards(dx, dz)).toBeCloseTo(Math.atan2(-dx, -dz), 9);
+    }
   });
 });

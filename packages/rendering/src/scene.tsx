@@ -2,11 +2,12 @@ import { useMemo, useRef, type ReactElement } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PALETTE, type GraphicsTier } from '@tuner/shared';
-import type { AccessibilityConfig, StageDef, WorldState } from '@tuner/game-core';
+import type { AccessibilityConfig, NpcView, StageDef, WorldState } from '@tuner/game-core';
 import { formTuningFor } from '@tuner/game-core';
 import { StageGeometry } from './stage-geometry.js';
 import { StageAtmosphere } from './lighting.js';
 import { TunerCharacter } from './character/tuner.js';
+import { Villager } from './character/villager.js';
 import { BossModel, DetunerCreature } from './creatures/detuners.js';
 
 /**
@@ -30,6 +31,13 @@ export interface TunerSceneProps {
   readonly accessibility?: Partial<AccessibilityConfig>;
   /** Maximum simultaneous instanced projectiles. */
   readonly maxProjectiles?: number;
+  /**
+   * The region's people, from `core.npcs`.
+   *
+   * Optional because the two action-platformer stages have nobody in them, and
+   * a region with no zone must draw exactly as it did before this existed.
+   */
+  readonly npcs?: readonly NpcView[];
 }
 
 const DEFAULT_MAX_PROJECTILES = 64;
@@ -72,6 +80,25 @@ export function TunerScene(props: TunerSceneProps): ReactElement {
         accent={accent}
         castShadow={tier !== 'low'}
       />
+
+      {/*
+        The people. Absent survivors are not drawn at all rather than hidden:
+        `present` is false for somebody who has not arrived yet or has left, and
+        a hidden mesh still costs a matrix update every frame.
+      */}
+      {props.npcs
+        ?.filter((npc) => npc.present)
+        .map((npc) => (
+          <Villager
+            key={npc.id}
+            position={npc.position}
+            yaw={npc.yaw}
+            appearance={npc.appearance}
+            speaking={npc.speaking}
+            lookAt={world.player.position}
+            castShadow={tier !== 'low'}
+          />
+        ))}
 
       {world.enemies.map((enemy) => (
         <DetunerCreature

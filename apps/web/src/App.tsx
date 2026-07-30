@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactElement } from 'rea
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type * as THREE from 'three';
 import { QUALITY_PRESETS } from '@tuner/platform';
-import { TunerScene } from '@tuner/rendering';
+import { ResonanceEffects, TunerScene } from '@tuner/rendering';
 import {
   AccessibilityScreen,
   BootScreen,
@@ -33,6 +33,9 @@ import { useAudioBridge } from './game/use-audio-bridge.js';
  *  The HUD needs Coherence and charge tier — it does not need 60 Hz. Throttling
  *  it keeps React out of the frame budget while still feeling immediate. */
 const HUD_REFRESH_MS = 100;
+
+/** How often the NPC roster is checked for a change that needs a re-render. */
+const ROSTER_POLL_MS = 500;
 
 export function App(): ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -118,7 +121,10 @@ export function App(): ReactElement {
     // Browsers gate audio behind a real gesture, and this click is one.
     audio.unlock();
     replace('playing');
-    loop.start('fallen-sanctuary');
+    // The Fractured Garden, not the Fallen Sanctuary. The vertical slice is the
+    // garden — its people, its temple, its guardian — and starting anywhere else
+    // means a new player never meets any of it.
+    loop.start('fractured-garden');
   }, [audio, loop, replace]);
 
   const resume = useCallback(() => {
@@ -166,6 +172,21 @@ export function App(): ReactElement {
       },
       get stageId() {
         return loop.core?.stageDef?.id ?? null;
+      },
+      /** The region's people, so a capture run can find somebody to stand by. */
+      get npcs() {
+        return (loop.core?.npcs ?? []).map((n) => ({
+          id: n.id,
+          present: n.present,
+          speaking: n.speaking,
+          yaw: n.yaw,
+          x: n.position.x,
+          y: n.position.y,
+          z: n.position.z,
+        }));
+      },
+      get interactionTarget() {
+        return loop.core?.adventure.interactionTarget ?? null;
       },
       get errors() {
         return loop.error ? [loop.error.message] : [];
@@ -272,6 +293,31 @@ function WorldView({ loop }: { loop: ReturnType<typeof useGameLoop> }): ReactEle
     if (core?.stageDef) force((n) => n + 1);
   }, [core?.stageDef]);
 
+  /*
+    The one thing about the people that a ref cannot carry.
+
+    Positions, yaw and who is speaking all update in place and are read inside
+    `useFrame`, so they never need React. A survivor's *appearance* is different:
+    it decides which meshes exist — a hat, a watering can, the violet seam of the
+    infection — and it changes when a region is restored or when Tarn is
+    cleansed. That is a different tree, so it needs a render.
+
+    Polling a short signature at a low rate rather than subscribing keeps this
+    out of the frame loop entirely, and the signature only moves a handful of
+    times in a whole playthrough.
+  */
+  const rosterRef = useRef('');
+  useEffect(() => {
+    if (!core) return;
+    const id = setInterval(() => {
+      const signature = core.npcs.map((n) => `${n.id}:${n.appearance}:${n.present}`).join('|');
+      if (signature === rosterRef.current) return;
+      rosterRef.current = signature;
+      force((n) => n + 1);
+    }, ROSTER_POLL_MS);
+    return () => clearInterval(id);
+  }, [core]);
+
   useFrame(() => {
     if (core) worldRef.current = core.state;
   });
@@ -284,6 +330,19 @@ function WorldView({ loop }: { loop: ReturnType<typeof useGameLoop> }): ReactEle
       <TunerScene
         world={worldRef.current ?? core.state}
         stage={core.stageDef}
+        tier={tier}
+        accessibility={accessibility}
+        npcs={core.npcs}
+      />
+      {/*
+        The effect layer subscribes to the same event bus the audio bridge does,
+        which is what keeps every cue's visual half from drifting away from its
+        sound: they are two listeners on one event, not two implementations of
+        one idea.
+      */}
+      <ResonanceEffects
+        bus={loop.events}
+        world={worldRef.current ?? core.state}
         tier={tier}
         accessibility={accessibility}
       />

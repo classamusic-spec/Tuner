@@ -3,6 +3,7 @@ import { createEventBus, SIM_STEP_SECONDS, type EventBus } from '@tuner/shared';
 import { createKinematicWorld } from '@tuner/physics';
 import { createEmptyInputFrame, type Action, type InputFrame } from '@tuner/input';
 import { createGameCore, type GameCore, type GameEvents } from '@tuner/game-core';
+import { VILLAGER_APPEARANCES } from '@tuner/rendering';
 import { CONTENT, FRACTURED_GARDEN_ZONE, TEMPLE_OF_THE_FIRST_BREATH } from '@tuner/game-content';
 
 /**
@@ -132,6 +133,20 @@ describe('the adventure layer is wired into the running game', () => {
       difficulty: 'standard',
       seed: 'adventure-integration',
     });
+  });
+
+  it('can draw every survivor the region authors', () => {
+    // The seam between content and rendering. `@tuner/rendering` cannot import
+    // `@tuner/game-content` — that would tie the presentation layer to this
+    // game's data — so the two agree only by convention until something checks.
+    // An appearance key with no look is a person who renders as a stranger.
+    const authored = new Set<string>();
+    for (const npc of FRACTURED_GARDEN_ZONE.npcs) {
+      authored.add(npc.appearance);
+      if (npc.restoredAppearance !== undefined) authored.add(npc.restoredAppearance);
+    }
+    const missing = [...authored].filter((key) => VILLAGER_APPEARANCES[key] === undefined);
+    expect(missing, 'content names appearances the renderer has never heard of').toEqual([]);
   });
 
   it('registers the Fractured Garden zone in the shipped content bundle', () => {
@@ -275,18 +290,41 @@ describe('the adventure layer is wired into the running game', () => {
     );
   });
 
-  it('projects at most once per step however often the host reads it', () => {
+  it('projects the people into stable objects that keep moving', () => {
+    /*
+      This is the assertion a screenshot found and eleven other tests missed.
+
+      `TunerScene` never re-renders from gameplay — that is the rule that keeps
+      React out of the frame budget — so the NPC array reaches it once and is
+      then read inside `useFrame` forever. If the projection allocated fresh
+      views each step, the renderer would hold the ones from the moment the
+      region loaded: Sava standing frozen on the third terrace while the
+      simulation walked her body away on her water round. She was invisible in
+      the build because the player had already passed the place she was drawn.
+
+      So the objects must be stable *and* their contents must change.
+    */
     loadAtHollow(core);
     run(core, 10);
 
-    // The renderer reads `npcs` every frame and the HUD reads `adventure` ten
-    // times a second. Both must be the same object until the world moves on.
-    const npcsA = core.npcs;
-    const stateA = core.adventure;
-    expect(core.npcs).toBe(npcsA);
-    expect(core.adventure).toBe(stateA);
+    const sava = core.npcs.find((n) => n.id === 'npc-sava');
+    expect(sava, 'Sava is not in the projection').toBeDefined();
+    const startZ = sava!.position.z;
 
-    run(core, 1);
-    expect(core.npcs).not.toBe(npcsA);
+    // Same array, same objects, same Vec3 — nothing is reallocated.
+    const roster = core.npcs;
+    run(core, 120);
+    expect(core.npcs).toBe(roster);
+    expect(core.npcs.find((n) => n.id === 'npc-sava')).toBe(sava);
+
+    // And she has actually moved, in the object the renderer is holding.
+    expect(sava!.position.z).not.toBe(startZ);
+  });
+
+  it('reads back the same adventure state within a step', () => {
+    loadAtHollow(core);
+    run(core, 10);
+    const stateA = core.adventure;
+    expect(core.adventure).toBe(stateA);
   });
 });
