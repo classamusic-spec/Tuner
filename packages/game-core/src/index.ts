@@ -13,6 +13,7 @@ export * from './events.js';
 export * from './config.js';
 export * from './content-types.js';
 export * from './forms.js';
+export * from './adventure-types.js';
 export * from './game.js';
 export * from './create-game.js';
 export { RESONANCE_FORMS, FORM_WHEEL_ORDER } from './systems/forms-registry.js';
