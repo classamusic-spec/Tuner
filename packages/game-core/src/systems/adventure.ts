@@ -190,6 +190,18 @@ export interface AdventureRuntime {
   /** True once the region has been announced as restored, so it happens once. */
   restorationAnnounced: boolean;
 
+  /**
+   * True while the player is inside a temple rather than out in the region.
+   *
+   * The runtime belongs to the *region*, not the loaded stage, so a trip into
+   * the Temple of the First Breath must not restart the garden's quests. But an
+   * NPC's position is a region coordinate, and honouring it inside the temple
+   * would stand a villager in a corridor they have never been to. Marking the
+   * runtime interior keeps every quest, motif and codex entry while making
+   * everybody absent.
+   */
+  interior: boolean;
+
   /** Reused snapshot buffers, so a step allocates nothing. */
   readonly firedTriggers: Set<string>;
   readonly solvedPuzzles: Set<string>;
@@ -235,6 +247,7 @@ export function createAdventureRuntime(content: AdventureContent = {}): Adventur
     defeatedBosses: new Set(),
     interactionTarget: null,
     restorationAnnounced: false,
+    interior: false,
     firedTriggers: new Set(),
     solvedPuzzles: new Set(),
   };
@@ -294,6 +307,7 @@ export function resetAdventureRuntime(runtime: AdventureRuntime): void {
   runtime.defeatedBosses.clear();
   runtime.interactionTarget = null;
   runtime.restorationAnnounced = false;
+  runtime.interior = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -409,6 +423,7 @@ export function createAdventureSystem(runtime: AdventureRuntime): System {
 export function runAdventureStep(ctx: SimContext, runtime: AdventureRuntime): void {
   if (ctx.world.paused) return;
 
+  const world = ctx.world;
   const effects = createAdventureEffects(ctx, runtime);
 
   updatePresence(ctx, runtime);
@@ -420,9 +435,22 @@ export function runAdventureStep(ctx: SimContext, runtime: AdventureRuntime): vo
   const wasTalking = isDialogueActive(runtime.dialogue);
   if (wasTalking) tickDialogue(ctx, runtime.dialogue, effects);
 
-  updateInteraction(ctx, runtime, wasTalking);
-  if (!wasTalking && !isDialogueActive(runtime.dialogue)) {
-    tryStartConversation(ctx, runtime);
+  // A cutscene suspends the search for somebody to talk to, and only that.
+  //
+  // Every confirm button ends a cutscene, `interact` among them, so without this
+  // the press that skips a scene would also open a conversation with whoever the
+  // player happened to be standing beside — one button doing two jobs in a
+  // single step. The narrow scope is deliberate: suppressing the whole step
+  // instead would freeze presence and routines, and a region loaded straight
+  // into a scene would show the renderer the *previous* region's people, still
+  // marked present, standing at coordinates from a place the player has left.
+  if (world.cutsceneId === null) {
+    updateInteraction(ctx, runtime, wasTalking);
+    if (!wasTalking && !isDialogueActive(runtime.dialogue)) {
+      tryStartConversation(ctx, runtime);
+    }
+  } else {
+    runtime.interactionTarget = null;
   }
 
   discoverMarkers(ctx, runtime);
@@ -445,6 +473,10 @@ export function skipAdventureDialogue(ctx: SimContext, runtime: AdventureRuntime
 function updatePresence(ctx: SimContext, runtime: AdventureRuntime): void {
   const flags = ctx.world.stage.flags;
   for (const npc of runtime.npcs) {
+    if (runtime.interior) {
+      npc.present = false;
+      continue;
+    }
     const def = npc.def;
     const arrived = def.requiresFlag === undefined || flags.has(def.requiresFlag);
     const left = def.hiddenByFlag !== undefined && flags.has(def.hiddenByFlag);

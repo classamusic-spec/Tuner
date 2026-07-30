@@ -3,6 +3,11 @@ import { FALLEN_SANCTUARY } from './stages/fallen-sanctuary.js';
 import { FRACTURED_GARDEN } from './stages/fractured-garden.js';
 import { ENEMY_ARCHETYPES } from './enemies.js';
 import { BOSSES } from './bosses.js';
+import { FRACTURED_GARDEN_ZONE } from './zones/fractured-garden-zone.js';
+import {
+  TEMPLE_OF_THE_FIRST_BREATH,
+  TEMPLE_OF_THE_FIRST_BREATH_STAGE,
+} from './temples/temple-of-the-first-breath.js';
 
 /**
  * `@tuner/game-content` — the game, as data.
@@ -32,6 +37,8 @@ export * from './enemies.js';
 export * from './bosses.js';
 export * from './stages/fallen-sanctuary.js';
 export * from './stages/fractured-garden.js';
+export * from './zones/fractured-garden-zone.js';
+export * from './temples/temple-of-the-first-breath.js';
 
 /**
  * Everything the runtime needs to build a session.
@@ -48,4 +55,10 @@ export const CONTENT: ContentBundle = {
   },
   enemies: ENEMY_ARCHETYPES,
   bosses: BOSSES,
+  zones: {
+    'fractured-garden': FRACTURED_GARDEN_ZONE,
+  },
+  templeStages: {
+    [TEMPLE_OF_THE_FIRST_BREATH.id]: TEMPLE_OF_THE_FIRST_BREATH_STAGE,
+  },
 };

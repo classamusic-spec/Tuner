@@ -5,6 +5,8 @@ import type { GameEvents } from './events.js';
 import type { StageResult, WorldState } from './state.js';
 import type { AccessibilityConfig, CameraConfig, CombatConfig, MovementConfig } from './config.js';
 import type { ContentBundle, StageDef } from './content-types.js';
+import type { AdventureState } from './adventure-types.js';
+import type { NpcView } from './systems/adventure.js';
 
 /**
  * The simulation facade.
@@ -48,6 +50,17 @@ export interface InterpolationSource {
 export interface GameCore {
   /** Loads a stage and places the player at its spawn or a given checkpoint. */
   loadStage(stageId: StageId, options?: { checkpointId?: string }): void;
+
+  /**
+   * Enters a temple interior, keyed by `TempleDef.id`.
+   *
+   * Not a `StageId`: that union enumerates the ten regions, and a temple is a
+   * room inside one rather than a region of its own. The region's adventure
+   * state — quests, codex, motifs, conversations already had — survives the
+   * transition, because the player has not left the region by going indoors.
+   */
+  loadTemple(templeId: string, options?: { checkpointId?: string }): void;
+
   unloadStage(): void;
 
   /** Advances exactly one fixed step. Never call with a variable delta. */
@@ -82,6 +95,27 @@ export interface GameCore {
    * scene they have already watched.
    */
   skipCutscene(): boolean;
+
+  /**
+   * The adventure slice: the running conversation, quest progress, objectives,
+   * discovered markers, unlocked codex entries, collected motifs and the NPC
+   * within reach.
+   *
+   * Recomputed at most once per simulation step and cached, so the renderer may
+   * read it every frame and the HUD as often as it likes.
+   */
+  readonly adventure: AdventureState;
+
+  /** The region's people, as the renderer needs them. Cached like `adventure`. */
+  readonly npcs: readonly NpcView[];
+
+  /**
+   * Ends the running conversation. Returns false when nobody was talking.
+   *
+   * Unlike a cutscene a conversation can always be skipped, so this never
+   * refuses on content grounds.
+   */
+  skipDialogue(): boolean;
 
   /** Computes the results for the stage as it currently stands. */
   computeResult(): StageResult | null;

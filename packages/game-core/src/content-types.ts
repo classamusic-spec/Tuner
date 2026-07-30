@@ -7,6 +7,7 @@ import type {
   Vec3,
 } from '@tuner/shared';
 import type { ColliderShape, LayerMask } from '@tuner/physics';
+import type { ZoneDef } from './adventure-types.js';
 
 /**
  * The stage authoring format.
@@ -385,4 +386,23 @@ export interface ContentBundle {
   readonly stages: Readonly<Partial<Record<StageId, StageDef>>>;
   readonly enemies: Readonly<Record<string, EnemyArchetypeDef>>;
   readonly bosses: Readonly<Record<string, BossDef>>;
+  /**
+   * The adventure layer of each region: its people, conversations, quests, map
+   * markers, codex entries and motif cards.
+   *
+   * Optional, and the omission is load-bearing rather than lazy — a region with
+   * no zone is a playable space with nobody in it, which is exactly what the
+   * action-platformer stages were. Adding a zone never changes how its stage
+   * behaves.
+   */
+  readonly zones?: Readonly<Partial<Record<StageId, ZoneDef>>>;
+  /**
+   * Temple interiors, keyed by `TempleDef.id`.
+   *
+   * Separate from `stages` because `StageId` enumerates the ten *regions*, and
+   * a temple is a room inside one rather than a region of its own. Keying these
+   * by temple id is what lets the Temple of the First Breath and the Fractured
+   * Garden both exist without one overwriting the other.
+   */
+  readonly templeStages?: Readonly<Record<string, StageDef>>;
 }
