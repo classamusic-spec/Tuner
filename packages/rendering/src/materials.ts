@@ -117,7 +117,17 @@ const ART = {
   /** Gold, held below full brightness so ACES tone mapping cannot bleach it. */
   gold: '#d8a63c',
   goldBright: '#f7d477',
-  goldDead: '#5c4268',
+  /**
+   * Tarnished, dead gold.
+   *
+   * Deliberately much darker and bluer than it looks like it needs to be. The
+   * colour blend is a linear-space lerp, and gold's linear luminance is an order
+   * of magnitude above any dark violet's, so a merely *dim* violet leaves the
+   * result warm: at the sanctuary's authored 0.62 infection an earlier `#5c4268`
+   * resolved to `#926f3f`, a warm brown, across the 21 `gold-trim` surfaces that
+   * stage places — which is the single largest source of amber left in the frame.
+   */
+  goldDead: '#241a3e',
   /** Stone that has gone out: the colour a detuned wall settles to. */
   stoneDead: '#332654',
   stoneDeadCarved: '#3a2c5c',
@@ -194,7 +204,15 @@ export interface SurfaceProfile {
   readonly depthWrite: boolean;
   readonly flatShading: boolean;
   readonly side: THREE.Side;
-  /** How strongly this surface takes the violet. Already-violet surfaces sit low. */
+  /**
+   * How strongly this surface takes the violet. Already-violet surfaces sit low.
+   *
+   * May exceed 1, and two styles need it to. The blend is linear-space, so a
+   * surface whose base colour is far brighter than its infected colour keeps its
+   * base *hue* long after the mix fraction says it should be gone; giving those
+   * styles a response above 1 makes the infection actually arrive at the
+   * infection levels stages author. The product is clamped to 1.
+   */
   readonly infectionResponse: number;
   /** Bands per metre of world height. Larger means finer layering. */
   readonly bandScale: number;
@@ -280,6 +298,13 @@ export const SURFACE_PROFILES: Readonly<Record<SurfaceStyle, SurfaceProfile>> = 
     restoredColour: colour(ART.warmStone),
     bandScale: 0.42,
     bandStrength: 0.16,
+    // Even undressed stone remembers the geometry, faintly, once it is in tune.
+    // Floors are most of what a player looks at, so this is the single biggest
+    // carrier of the gold-lattice reading — kept weak so it never becomes noise.
+    seamScale: 0.33,
+    seamStrength: 0.2,
+    lineScale: 0.21,
+    lineStrength: 0.12,
     rimStrength: 0.08,
     rimFade: 12,
   }),
@@ -293,7 +318,9 @@ export const SURFACE_PROFILES: Readonly<Record<SurfaceStyle, SurfaceProfile>> = 
     seamColour: colour(ART.goldBright),
     seamScale: 0.5,
     seamStrength: 0.5,
-    lineScale: 0.16,
+    // Deliberately not a multiple of the lattice scale: the gold geometry and
+    // the cyan rules must cross rather than sit on top of one another.
+    lineScale: 0.34,
     lineStrength: 0.3,
     bandScale: 0.7,
     bandStrength: 0.2,
@@ -365,12 +392,19 @@ export const SURFACE_PROFILES: Readonly<Record<SurfaceStyle, SurfaceProfile>> = 
     faceShade: 0.25,
   }),
   metal: profile({
+    // Brushed rather than polished, and only lightly metallic. There is no
+    // environment map in this project and there is not going to be one, so a
+    // high `metalness` here does not read as metal — it reads as a black hole
+    // with a white spot on top. At 0.8 this style measured 0.011 luminance on
+    // its side faces and 0.98 on the face the sun hit, and looked identical
+    // detuned and restored. Low metalness plus mid roughness keeps a sheen while
+    // letting the diffuse term — and therefore the palette split — survive.
     baseColour: colour(ART.steel),
     infectedColour: colour(ART.steelTarnished),
     restoredColour: colour(ART.steelBright),
     rimColour: colour(ART.glassBright),
-    roughness: 0.3,
-    metalness: 0.8,
+    roughness: 0.55,
+    metalness: 0.22,
     bandScale: 0.3,
     bandStrength: 0.1,
     seamScale: 0.75,
@@ -484,32 +518,52 @@ export const SURFACE_PROFILES: Readonly<Record<SurfaceStyle, SurfaceProfile>> = 
     bandStrength: 0.22,
     seamScale: 0.6,
     seamStrength: 0.24,
-    lineScale: 0.4,
+    lineScale: 0.37,
     lineStrength: 0.26,
     rimStrength: 0.44,
     rimPower: 2.6,
     rimFade: 30,
   }),
   'gold-trim': profile({
+    // The Keepers' metalwork, and the most-placed style in the sanctuary after
+    // carved stone — so it decides what colour the frame is. Three things here
+    // were each independently painting the detuned world amber:
+    //
+    //  * a constant `goldDim` emission, which is *not* gated by tuning, so every
+    //    trim pixel added unlit gold no matter how infected the region was;
+    //  * `metalness: 0.7` with no environment map anywhere in this project, which
+    //    in Three.js means the diffuse term is suppressed and all that is left is
+    //    a specular highlight — sun-facing faces blew out to near-white cream
+    //    (measured 0.81 luminance while detuned) and carried no state at all;
+    //  * a warm infected colour, addressed on `ART.goldDead`.
+    //
+    // The gold now arrives as *glow*, which the shader gates on restoration, so
+    // trim goes properly dead at 440 Hz and lights up as the region comes home.
     baseColour: colour(ART.gold),
     infectedColour: colour(ART.goldDead),
     restoredColour: colour(ART.goldBright),
     rimColour: colour(ART.goldBright),
     seamColour: colour(ART.warmStoneLit),
     lineColour: colour(PALETTE.resonance),
-    emissiveColour: colour(PALETTE.goldDim),
-    emissiveIntensity: 0.2,
-    roughness: 0.26,
-    metalness: 0.7,
+    glowColour: colour(ART.goldBright),
+    glowStrength: 0.2,
+    roughness: 0.42,
+    metalness: 0.18,
     seamScale: 1.2,
     seamStrength: 0.2,
     lineScale: 0.9,
     lineStrength: 0.18,
     bandStrength: 0.08,
-    rimStrength: 0.6,
-    rimPower: 1.8,
-    rimFade: 40,
-    infectionResponse: 0.85,
+    // "Trim" undersells how this style is used: the sanctuary's rails are 24 m
+    // long, so its rim has to behave like a large flat surface's, not a bead's.
+    // At 0.6 strength over a 40 m fade the fresnel term on a rail's top face
+    // — seen edge-on from a metre away, which is exactly where the camera sits —
+    // painted the whole ledge magenta-white. Structural styles keep the rim
+    // tight and short so it reads as a drawn outline instead of a wash.
+    rimStrength: 0.15,
+    rimPower: 3.2,
+    rimFade: 13,
+    infectionResponse: 1.3,
   }),
   invisible: profile({
     baseColour: colour(PALETTE.abyss),
@@ -655,8 +709,14 @@ const FRAGMENT_DIFFUSE = /* glsl */ `
     // Stylised face shading. Up-facing planes lift toward the sky, undersides
     // drop away, and the two horizontal axes differ slightly so a corner never
     // disappears. This is the silhouette work the lighting rig cannot do.
+    //
+    // The up-gain is small on purpose. An up-facing face already collects the key
+    // (the sun is overhead), the whole sky half of the hemisphere light and the
+    // rim, so a large albedo lift on top of that stack is what pushed the tops of
+    // the luminous styles to a hueless cream. The downward terms can be firmer:
+    // nothing else in the rig is darkening an underside.
     float tunerFace = 1.0 + uFaceShade * (
-      0.30 * tunerNormal.y - 0.20 * abs( tunerNormal.x ) - 0.07 * abs( tunerNormal.z )
+      0.16 * tunerNormal.y - 0.22 * abs( tunerNormal.x ) - 0.09 * abs( tunerNormal.z )
     );
     tunerCol *= max( tunerFace, 0.15 );
 
@@ -732,6 +792,15 @@ const FRAGMENT_RIM = /* glsl */ `
     float tunerNear = 1.0 - smoothstep( uRimFade * 0.35, uRimFade, length( vTunerViewPos ) );
 
     float tunerEdgeInfect = clamp( uInfection * uInfectionResponse, 0.0, 1.0 );
+
+    // The material's authored emissive is the surface's *healthy* light, and the
+    // base shader has already written it into totalEmissiveRadiance without ever
+    // consulting the tuning. Left alone it overrides the palette split on every
+    // luminous style: a resonance crystal at 62% infection kept emitting cyan and
+    // measured #4575b0 — blue — where the art direction wants infected magenta.
+    // Detuned matter keeps a little of it so it does not go flat black.
+    totalEmissiveRadiance *= mix( 1.0, 0.18, tunerEdgeInfect );
+
     float tunerPulse = 0.5 + 0.5 * sin( uTime * 5.5 - vTunerWorldPos.y * 1.4 );
     // Detuned edges pulse magenta, out of phase with anything the player does.
     vec3 tunerEdge = mix( uRimColour, uPulseColour * ( 0.45 + 0.55 * tunerPulse ), tunerEdgeInfect );

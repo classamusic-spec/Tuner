@@ -161,8 +161,11 @@ describe('surface library — the 440/432 palette split', () => {
     for (const style of ['stone', 'stone-carved', 'root'] as const) {
       const dark = detuned(style);
       const light = tuned(style);
-      expect(luminance(dark), `${style} detuned luminance`).toBeLessThan(0.16);
-      expect(luminance(light), `${style} tuned luminance`).toBeGreaterThan(0.3);
+      expect(luminance(dark), `${style} detuned luminance`).toBeLessThan(0.22);
+      expect(luminance(light), `${style} tuned luminance`).toBeGreaterThan(0.5);
+      // The values have to be different, not merely the hues: a detuned region
+      // is a darker place, and the ratio is what carries that.
+      expect(luminance(light) / luminance(dark), `${style} value ratio`).toBeGreaterThan(2.2);
       const [r, g, b] = srgb(dark);
       // Black-violet: blue above green, and never a warm cast.
       expect(b, `${style} detuned blue`).toBeGreaterThan(g);
@@ -182,7 +185,9 @@ describe('surface library — the 440/432 palette split', () => {
 
   it('makes the infected style read as wrong: near-black violet, and it heals to green', () => {
     const wrong = detuned('infected');
-    expect(luminance(wrong)).toBeLessThan(0.08);
+    // The darkest matter in the frame, darker than detuned rock beside it.
+    expect(luminance(wrong)).toBeLessThan(0.12);
+    expect(luminance(wrong)).toBeLessThan(luminance(detuned('stone')));
     const [, g, b] = srgb(wrong);
     expect(b).toBeGreaterThan(g * 1.5);
 
@@ -522,6 +527,48 @@ describe('resonance shader injection', () => {
     expect(shader.fragmentShader).toContain('uRimFade');
   });
 
+  it('lands in the right place inside the real three.js shaders', () => {
+    // The whole treatment is spliced into Three.js' own chunks, so a renamed
+    // chunk in a version bump would silently stop the world from being repainted.
+    // Feeding the injection the real sources is what catches that.
+    for (const name of ['standard', 'lambert'] as const) {
+      const source = THREE.ShaderLib[name];
+      const shader: InjectableShader = {
+        uniforms: {},
+        vertexShader: source.vertexShader,
+        fragmentShader: source.fragmentShader,
+      };
+      injectResonanceShader(shader, 'crystal', SURFACE_PROFILES.crystal, {
+        uInfection: { value: 0.5 },
+        uRestoration: { value: 0.5 },
+        uTime: { value: 0 },
+      });
+
+      const fragment = shader.fragmentShader;
+      const diffuseDeclared = fragment.indexOf('vec4 diffuseColor = vec4( diffuse, opacity );');
+      const diffuseWritten = fragment.indexOf('diffuseColor.rgb = tunerCol;');
+      expect(diffuseDeclared, name).toBeGreaterThan(-1);
+      expect(diffuseWritten, name).toBeGreaterThan(diffuseDeclared);
+
+      const emissiveDeclared = fragment.indexOf('vec3 totalEmissiveRadiance = emissive;');
+      const emissiveWritten = fragment.indexOf('totalEmissiveRadiance += tunerEdge');
+      expect(emissiveDeclared, name).toBeGreaterThan(-1);
+      expect(emissiveWritten, name).toBeGreaterThan(emissiveDeclared);
+      // Appended-at-the-end is the fallback for a renamed chunk; it must not be
+      // what happens with the real sources.
+      expect(fragment.trimEnd().endsWith('}'), name).toBe(true);
+
+      const vertex = shader.vertexShader;
+      expect(vertex.indexOf('vTunerWorldNormal = normalize'), name).toBeGreaterThan(
+        vertex.indexOf('#include <beginnormal_vertex>'),
+      );
+      expect(vertex.indexOf('vTunerViewPos = mvPosition.xyz;'), name).toBeGreaterThan(
+        vertex.indexOf('#include <project_vertex>'),
+      );
+      expect(vertex.trimEnd().endsWith('}'), name).toBe(true);
+    }
+  });
+
   it('degrades to appending rather than failing when a chunk is renamed', () => {
     const shader: InjectableShader = {
       uniforms: {},
@@ -575,22 +622,26 @@ describe('lighting palette', () => {
     expect(distance(sickRim, colours.rim)).toBeGreaterThan(0.3);
   });
 
-  it('keeps the fills well under the key so faces still read', () => {
+  it('clears the air as the region tunes: a stronger sun and weaker fills', () => {
     const resolved = createResolvedAmbience();
     const colours = createLightingColours();
-    for (const restoration of [0, 0.5, 1]) {
-      resolveAmbience(AMBIENCE, restoration, resolved);
-      resolveLightingColours(resolved, restoration, colours);
-      const fills =
-        colours.hemisphereIntensity + colours.ambientIntensity + colours.resonanceIntensity;
-      expect(colours.keyIntensity).toBeGreaterThan(fills * 0.85);
-      expect(colours.keyIntensity).toBeGreaterThan(1.5);
-    }
-    // And a tuned region is lit more brightly than a detuned one.
+
+    resolveAmbience(AMBIENCE, 0, resolved);
     resolveLightingColours(resolved, 0, colours);
-    const detunedKey = colours.keyIntensity;
+    const sickKey = colours.keyIntensity;
+    const sickWash = colours.hemisphereIntensity + colours.ambientIntensity;
+
+    resolveAmbience(AMBIENCE, 1, resolved);
     resolveLightingColours(resolved, 1, colours);
-    expect(colours.keyIntensity).toBeGreaterThan(detunedKey);
+    // Detuned air scatters: a flat, sick wash and a weak sun. Tuned air is
+    // clear, so the sun strengthens and the fills drop out from under it.
+    expect(colours.keyIntensity).toBeGreaterThan(sickKey);
+    expect(colours.hemisphereIntensity + colours.ambientIntensity).toBeLessThan(sickWash * 0.75);
+    // And once tuned, the key clearly dominates — a lit face and a shadowed one
+    // must be different values, which is what an all-fill rig destroys.
+    expect(colours.keyIntensity).toBeGreaterThan(
+      (colours.hemisphereIntensity + colours.ambientIntensity) * 1.6,
+    );
   });
 
   it('derives a violet mid band and a magenta haze that the restoration drains', () => {

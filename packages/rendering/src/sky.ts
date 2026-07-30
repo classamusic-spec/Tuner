@@ -233,12 +233,12 @@ export interface LightingColours {
 export function createLightingColours(): LightingColours {
   return {
     key: new THREE.Color(AIR.sickKey),
-    keyIntensity: 1.35,
+    keyIntensity: 1.4,
     skyFill: new THREE.Color(AIR.skyFillDetuned),
     groundFill: new THREE.Color(AIR.groundDetuned),
-    hemisphereIntensity: 0.95,
+    hemisphereIntensity: 1.0,
     ambient: new THREE.Color(PALETTE.panel),
-    ambientIntensity: 0.26,
+    ambientIntensity: 0.3,
     resonance: new THREE.Color(AIR.fillDetuned),
     resonanceIntensity: 0.85,
     rim: new THREE.Color(AIR.rimDetuned),
@@ -258,13 +258,23 @@ export function createLightingColours(): LightingColours {
  * - **A cool hemisphere fill**, deliberately blue in both states. Warm key
  *   against cool fill is what gives a low-poly face its shape; a warm key
  *   against a warm fill is how a scene turns into one flat sheet of amber.
- * - **A tiny ambient term.** The sum of all the fills stays well under the key,
- *   because contrast between a lit face and a shadowed one is what carries a
- *   silhouette, and that contrast is a ratio.
+ * - **Air that clears as the region tunes.** Detuned air scatters: the fills come
+ *   up, the sun comes down, and the region reads as flat, cold and overcast.
+ *   Tuned air is clear, so the fills drop away and the key takes over, which is
+ *   what puts real value contrast between a lit face and a shadowed one. The
+ *   silhouette still holds while detuned because the surface shader's own
+ *   face-direction shade is multiplicative on albedo and does not depend on the
+ *   lighting at all.
  * - **A resonance fill** travelling with the player, whose colour is the
  *   region's tuning: violet-magenta at 440 Hz, cyan-gold at 432 Hz.
  * - **A cool back light**, weak, unshadowed, opposite the key, purely to peel
  *   the player and the enemies off the wall behind them.
+ *
+ * The absolute values assume the renderer's defaults — ACES filmic tone mapping
+ * at exposure 1, which is what `apps/web` sets up. They were chosen against the
+ * two authored stages: a detuned floor lands around 7% luminance and a tuned one
+ * around 45%, so the same room is plainly a darker place while it is sick without
+ * ever going black.
  */
 export function resolveLightingColours(
   resolved: ResolvedAmbience,
@@ -275,17 +285,17 @@ export function resolveLightingColours(
 
   target.key.copy(resolved.sunColour).lerp(cachedColour(AIR.warmSun), 0.32 * t);
   target.key.lerp(cachedColour(AIR.sickKey), (1 - t) * 0.85);
-  target.keyIntensity = lerp(1.35, 1.85, t);
+  target.keyIntensity = lerp(1.4, 1.7, t);
 
   target.skyFill.copy(cachedColour(AIR.skyFillDetuned)).lerp(cachedColour(AIR.skyFillTuned), t);
   target.groundFill
     .copy(cachedColour(AIR.groundDetuned))
     .lerp(cachedColour(AIR.groundTuned), t)
     .lerp(resolved.ambientColour, 0.25);
-  target.hemisphereIntensity = lerp(0.95, 0.45, t);
+  target.hemisphereIntensity = lerp(1.0, 0.45, t);
 
   target.ambient.copy(resolved.fogColour);
-  target.ambientIntensity = lerp(0.26, 0.1, t);
+  target.ambientIntensity = lerp(0.3, 0.1, t);
 
   target.resonance.copy(cachedColour(AIR.fillDetuned)).lerp(cachedColour(AIR.fillTuned), t);
   // A gold kiss at the very end, so a fully restored region reads as cyan-gold
@@ -389,10 +399,40 @@ void main() {
 }
 `;
 
+/**
+ * Radius of the sky dome, in metres.
+ *
+ * This number is load-bearing and it is the one thing about the sky that is easy
+ * to get catastrophically wrong, so it is a named constant with the reasoning
+ * attached.
+ *
+ * The dome is centred on the camera every frame and drawn with `depthTest: false`
+ * at `renderOrder: -1000`, so it needs no room at all — every piece of world
+ * geometry paints over it regardless of how far away it nominally is. What it
+ * *does* need is to sit inside the camera's frustum, because vertex clipping
+ * against the far plane happens whether or not the depth test is on.
+ *
+ * `QUALITY_PRESETS` in `@tuner/platform` sets the camera's far plane from the
+ * graphics tier: 90 m at `low`, 160 m at `medium`, 260 m at `high`. An earlier
+ * version of this file used a 600 m dome, which is beyond *every* one of those —
+ * so every triangle of the sky was clipped away and the game shipped with no sky
+ * at all. What looked like a night sky in the screenshots was the page's own
+ * `#0b1030` background showing through a canvas that never drew a backdrop.
+ *
+ * 40 m is comfortably inside the tightest far plane and thousands of times the
+ * 0.1 m near plane, so the dome survives at every tier. `materials.test.ts`
+ * asserts it against the real presets.
+ */
+export const SKY_DOME_RADIUS = 40;
+
 export interface SkyDomeOptions {
   readonly tier?: GraphicsTier;
-  /** Radius of the dome. It follows the camera, so this only has to clear the
-   *  near plane comfortably. */
+  /**
+   * Radius of the dome. Defaults to `SKY_DOME_RADIUS`.
+   *
+   * Must stay inside the camera's far plane — see `SKY_DOME_RADIUS`. There is no
+   * upside to a large value: the dome tracks the camera and never depth-tests.
+   */
   readonly radius?: number;
   /** Constellation rotation, in radians per second. Zero when reduced motion
    *  is on — a slowly turning full-screen pattern is exactly the kind of thing
@@ -425,7 +465,7 @@ export interface SkyDome {
  */
 export function createSkyDome(options: SkyDomeOptions = {}): SkyDome {
   const tier: GraphicsTier = options.tier ?? 'high';
-  const radius = options.radius ?? 600;
+  const radius = options.radius ?? SKY_DOME_RADIUS;
   const segments = tier === 'low' ? 12 : tier === 'medium' ? 18 : 24;
 
   const geometry = new THREE.SphereGeometry(radius, segments, Math.max(8, segments - 8));
