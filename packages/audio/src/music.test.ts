@@ -463,3 +463,364 @@ describe('the Web Audio engine without Web Audio', () => {
     expect(engine.levels.master).toBe(0.3);
   });
 });
+
+// ---------------------------------------------------------------------------
+// A stub Web Audio graph.
+//
+// Node has no AudioContext, so without this the adapter would ship entirely
+// unexercised. The stub records the graph the engine builds and enforces the
+// parts of the real API that throw — an exponential ramp to zero, a ramp
+// scheduled before its parameter exists — so a mistake surfaces here rather
+// than as silence on a device.
+// ---------------------------------------------------------------------------
+
+interface ParamEvent {
+  readonly kind: string;
+  readonly value: number;
+  readonly time: number;
+}
+
+class StubParam {
+  value = 0;
+  readonly events: ParamEvent[] = [];
+  setValueAtTime(value: number, time: number): this {
+    this.record('set', value, time);
+    return this;
+  }
+  linearRampToValueAtTime(value: number, time: number): this {
+    this.record('linear', value, time);
+    return this;
+  }
+  exponentialRampToValueAtTime(value: number, time: number): this {
+    if (value <= 0) throw new RangeError('exponential ramp to zero');
+    this.record('exponential', value, time);
+    return this;
+  }
+  cancelScheduledValues(time: number): this {
+    this.record('cancel', 0, time);
+    return this;
+  }
+  private record(kind: string, value: number, time: number): void {
+    if (!Number.isFinite(value) || !Number.isFinite(time)) {
+      throw new RangeError(`${kind} ramp with a non-finite argument`);
+    }
+    if (time < 0) throw new RangeError('ramp scheduled before time zero');
+    this.value = value;
+    this.events.push({ kind, value, time });
+  }
+}
+
+class StubNode {
+  readonly outputs: StubNode[] = [];
+  connect(target: StubNode): StubNode {
+    this.outputs.push(target);
+    return target;
+  }
+  disconnect(): void {
+    this.outputs.length = 0;
+  }
+}
+
+class StubGain extends StubNode {
+  readonly gain = new StubParam();
+}
+
+class StubOscillator extends StubNode {
+  type = 'sine';
+  readonly frequency = new StubParam();
+  readonly detune = new StubParam();
+  onended: (() => void) | null = null;
+  startedAt: number | null = null;
+  stoppedAt: number | null = null;
+  start(time: number): void {
+    if (this.startedAt !== null) throw new Error('oscillator started twice');
+    this.startedAt = time;
+  }
+  stop(time: number): void {
+    this.stoppedAt = time;
+  }
+}
+
+class StubBufferSource extends StubNode {
+  buffer: unknown = null;
+  loop = false;
+  onended: (() => void) | null = null;
+  startedAt: number | null = null;
+  start(time: number): void {
+    this.startedAt = time;
+  }
+  stop(): void {}
+}
+
+class StubFilter extends StubNode {
+  type = 'lowpass';
+  readonly frequency = new StubParam();
+  readonly Q = new StubParam();
+}
+
+class StubPanner extends StubNode {
+  readonly pan = new StubParam();
+}
+
+class StubAnalyser extends StubNode {
+  fftSize = 2048;
+  smoothingTimeConstant = 0.8;
+  get frequencyBinCount(): number {
+    return this.fftSize / 2;
+  }
+  getByteTimeDomainData(target: Uint8Array): void {
+    for (let i = 0; i < target.length; i++) target[i] = 128 + (i % 2 === 0 ? 40 : -40);
+  }
+  getByteFrequencyData(target: Uint8Array): void {
+    for (let i = 0; i < target.length; i++) target[i] = 200 - i;
+  }
+}
+
+class StubContext {
+  currentTime = 0;
+  readonly sampleRate = 8000;
+  state: 'suspended' | 'running' | 'closed' = 'running';
+  readonly destination = new StubNode();
+  readonly oscillators: StubOscillator[] = [];
+  readonly gains: StubGain[] = [];
+  readonly panners: StubPanner[] = [];
+  readonly bufferSources: StubBufferSource[] = [];
+  analyser: StubAnalyser | null = null;
+  closed = false;
+
+  createGain(): StubGain {
+    const node = new StubGain();
+    this.gains.push(node);
+    return node;
+  }
+  createOscillator(): StubOscillator {
+    const node = new StubOscillator();
+    this.oscillators.push(node);
+    return node;
+  }
+  createBiquadFilter(): StubFilter {
+    return new StubFilter();
+  }
+  createStereoPanner(): StubPanner {
+    const node = new StubPanner();
+    this.panners.push(node);
+    return node;
+  }
+  createBufferSource(): StubBufferSource {
+    const node = new StubBufferSource();
+    this.bufferSources.push(node);
+    return node;
+  }
+  createBuffer(channels: number, frames: number): { getChannelData(): Float32Array } {
+    const data = new Float32Array(frames * channels);
+    return { getChannelData: () => data };
+  }
+  createAnalyser(): StubAnalyser {
+    const node = new StubAnalyser();
+    this.analyser = node;
+    return node;
+  }
+  async resume(): Promise<void> {
+    this.state = 'running';
+  }
+  async suspend(): Promise<void> {
+    this.state = 'suspended';
+  }
+  async close(): Promise<void> {
+    this.closed = true;
+    this.state = 'closed';
+  }
+}
+
+function stubEngine(): { engine: ReturnType<typeof createWebAudioEngine>; ctx: StubContext } {
+  const ctx = new StubContext();
+  const engine = createWebAudioEngine({
+    createContext: () => ctx as unknown as BaseAudioContextLike,
+    scheduleIntervalMs: 25,
+    lookaheadSeconds: 0.2,
+  });
+  return { engine, ctx };
+}
+
+describe('the Web Audio engine against a stub graph', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('builds a bussed graph and unlocks the context', async () => {
+    const { engine, ctx } = stubEngine();
+    await engine.unlock();
+    expect(engine.isUnlocked).toBe(true);
+    // Master plus the five sub-buses.
+    expect(ctx.gains.length).toBeGreaterThanOrEqual(6);
+    expect(ctx.analyser).not.toBeNull();
+    engine.dispose();
+    expect(ctx.closed).toBe(true);
+  });
+
+  it('renders a recipe as oscillators with a real envelope', async () => {
+    const { engine, ctx } = stubEngine();
+    await engine.unlock();
+    const before = ctx.oscillators.length;
+    engine.playSfx('counter-success');
+    const created = ctx.oscillators.slice(before);
+    // The just chord is four partials.
+    expect(created).toHaveLength(4);
+    for (const osc of created) {
+      expect(osc.startedAt).not.toBeNull();
+      expect(osc.stoppedAt).not.toBeNull();
+      expect(osc.frequency.events.length).toBeGreaterThan(0);
+    }
+    const envelopes = ctx.gains.filter((g) => g.gain.events.some((e) => e.kind === 'linear'));
+    expect(envelopes.length).toBeGreaterThan(0);
+    engine.dispose();
+  });
+
+  it('pans by listener-relative direction and attenuates with distance', async () => {
+    const { engine, ctx } = stubEngine();
+    await engine.unlock();
+    engine.setListener(vec3(0, 0, 0), 0);
+
+    engine.playSfx('pulse-fire', { position: vec3(10, 0, 0) });
+    const right = ctx.panners[ctx.panners.length - 1];
+    expect(right?.pan.value ?? 0).toBeGreaterThan(0.5);
+
+    engine.playSfx('pulse-fire', { position: vec3(-10, 0, 0) });
+    const left = ctx.panners[ctx.panners.length - 1];
+    expect(left?.pan.value ?? 0).toBeLessThan(-0.5);
+
+    engine.playSfx('pulse-fire', { position: vec3(0, 0, -10) });
+    const ahead = ctx.panners[ctx.panners.length - 1];
+    expect(Math.abs(ahead?.pan.value ?? 1)).toBeLessThan(0.001);
+    engine.dispose();
+  });
+
+  it('drops sounds beyond the audible radius instead of scheduling them', async () => {
+    const { engine, ctx } = stubEngine();
+    await engine.unlock();
+    engine.setListener(vec3(0, 0, 0), 0);
+    const before = ctx.oscillators.length;
+    engine.playSfx('pulse-fire', { position: vec3(0, 0, 500) });
+    expect(ctx.oscillators.length).toBe(before);
+    engine.dispose();
+  });
+
+  it('schedules music ahead of the audio clock rather than note by note', async () => {
+    vi.useFakeTimers();
+    const { engine, ctx } = stubEngine();
+    await engine.unlock();
+    engine.setMusicState({
+      stage: 'fractured-garden',
+      layers: { world: 0.6, movement: 0.4, combat: 0.5 },
+      detune: 1,
+      intensity: 0.5,
+    });
+    const before = ctx.oscillators.length;
+    vi.advanceTimersByTime(30);
+    const scheduled = ctx.oscillators.slice(before);
+    expect(scheduled.length).toBeGreaterThan(0);
+    // Everything is scheduled in the future, in one pass, ahead of the clock.
+    for (const osc of scheduled) {
+      expect(osc.startedAt ?? -1).toBeGreaterThan(ctx.currentTime);
+      expect(osc.startedAt ?? -1).toBeLessThanOrEqual(ctx.currentTime + 0.25);
+    }
+    // At full infection the score plays on the Detuners' grid.
+    const highest = Math.max(...scheduled.map((o) => o.frequency.value));
+    expect(highest).toBeGreaterThan(0);
+
+    engine.stopMusic(0.4);
+    const afterStop = ctx.oscillators.length;
+    vi.advanceTimersByTime(200);
+    expect(ctx.oscillators.length).toBe(afterStop);
+    engine.dispose();
+  });
+
+  it('retunes the score with the infection level', async () => {
+    vi.useFakeTimers();
+    const detuned = stubEngine();
+    await detuned.engine.unlock();
+    detuned.engine.setMusicState({
+      stage: 'fractured-garden',
+      layers: { world: 1 },
+      detune: 1,
+      intensity: 0,
+    });
+    vi.advanceTimersByTime(30);
+    const infectedRoot = Math.min(...detuned.ctx.oscillators.map((o) => o.frequency.value));
+    detuned.engine.dispose();
+
+    const clean = stubEngine();
+    await clean.engine.unlock();
+    clean.engine.setMusicState({
+      stage: 'fractured-garden',
+      layers: { world: 1 },
+      detune: 0,
+      intensity: 0,
+    });
+    vi.advanceTimersByTime(30);
+    const trueRoot = Math.min(...clean.ctx.oscillators.map((o) => o.frequency.value));
+    clean.engine.dispose();
+
+    expect(infectedRoot).toBeGreaterThan(trueRoot);
+    expect(infectedRoot / trueRoot).toBeCloseTo(DETUNED_HZ / WORLD_CHORD_HZ, 6);
+  });
+
+  it('runs a loop handle and reports analyser levels', async () => {
+    const { engine, ctx } = stubEngine();
+    await engine.unlock();
+    const loop = engine.playLoop('low-coherence', { position: vec3(2, 0, 0) });
+    expect(loop.isRunning).toBe(true);
+    const looping = ctx.oscillators.filter((o) => o.stoppedAt === null);
+    expect(looping.length).toBeGreaterThan(0);
+    loop.setVolume(0.4);
+    loop.setPosition(vec3(-4, 0, 0));
+    loop.stop(0.1);
+    expect(loop.isRunning).toBe(false);
+
+    const levels = engine.getVisualiserLevels();
+    expect(levels.beat).toBeGreaterThan(0);
+    expect(levels.bass).toBeGreaterThan(0);
+    expect(levels.lead).toBeGreaterThan(0);
+    expect(levels.beat).toBeLessThanOrEqual(1);
+    expect(levels.bass).toBeLessThanOrEqual(1);
+    engine.dispose();
+  });
+
+  it('brings the music bus back after a stopMusic fade, rather than resuming into silence', async () => {
+    vi.useFakeTimers();
+    const { engine, ctx } = stubEngine();
+    await engine.unlock();
+    // Master first, then the sub-buses in order, so index 1 is music.
+    const musicBus = ctx.gains[1];
+    expect(musicBus?.gain.value).toBeCloseTo(engine.levels.music, 6);
+
+    const state = {
+      stage: 'fractured-garden',
+      layers: { world: 0.6 },
+      detune: 0.5,
+      intensity: 0.2,
+    } as const;
+    engine.setMusicState(state);
+    engine.stopMusic(0.3);
+    expect(musicBus?.gain.value ?? 1).toBeLessThan(0.01);
+
+    engine.setMusicState(state);
+    expect(musicBus?.gain.value).toBeCloseTo(engine.levels.music, 6);
+    vi.advanceTimersByTime(60);
+    expect(ctx.oscillators.length).toBeGreaterThan(0);
+    engine.dispose();
+  });
+
+  it('applies mix levels to the bus graph and suspends on background', async () => {
+    const { engine, ctx } = stubEngine();
+    await engine.unlock();
+    engine.setLevels({ master: 0.25, sfx: 0.4 });
+    const touched = ctx.gains.filter((g) => g.gain.events.some((e) => e.kind === 'linear'));
+    expect(touched.length).toBeGreaterThanOrEqual(2);
+    engine.suspend();
+    expect(ctx.state).toBe('suspended');
+    engine.resume();
+    expect(ctx.state).toBe('running');
+    engine.dispose();
+  });
+});

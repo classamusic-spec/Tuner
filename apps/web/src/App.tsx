@@ -18,6 +18,7 @@ import {
 import type { WorldState } from '@tuner/game-core';
 import { useGameLoop } from './game/use-game-loop.js';
 import { useSettingsPersistence } from './game/use-settings-persistence.js';
+import { useAudioBridge } from './game/use-audio-bridge.js';
 
 /**
  * The web host.
@@ -40,6 +41,7 @@ export function App(): ReactElement {
   // Restored before the title screen appears, so a player who needs reduced
   // motion or larger text never sees a frame without it.
   const settings = useSettingsPersistence();
+  const audio = useAudioBridge(loop.core, loop.events);
 
   const screen = useUIStore((s) => s.screen);
   const navigate = useUIStore((s) => s.navigate);
@@ -113,9 +115,11 @@ export function App(): ReactElement {
   }, []);
 
   const startGame = useCallback(() => {
+    // Browsers gate audio behind a real gesture, and this click is one.
+    audio.unlock();
     replace('playing');
     loop.start('fallen-sanctuary');
-  }, [loop, replace]);
+  }, [audio, loop, replace]);
 
   const resume = useCallback(() => {
     setPausedUI(false);

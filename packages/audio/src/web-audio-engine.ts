@@ -369,6 +369,9 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
     if (!loop && activeVoices.size >= MAX_CONCURRENT_VOICES) return null;
 
     const rate = Math.max(0.25, Math.min(4, opts?.rate ?? 1));
+    // A form re-voices the timbre; an explicit `hz` then overrides the pitch,
+    // which is how a resonator pillar sounds its own degree in the acting
+    // form's colour.
     const voiced = opts?.form && opts.form !== 'base' ? applyFormToRecipe(recipe, opts.form) : recipe;
     const rootHz = (opts?.hz ?? voiced.frequency.startHz) * rate;
     const glideRatio =
@@ -564,7 +567,8 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
     const root = layerRootHz(voice.detunePull);
     const held =
       voice.rhythm === 'drone'
-        ? stepSeconds * 8
+        ? // A drone spans the whole phrase, so the bed never gaps.
+          stepSeconds * phraseSteps
         : voice.rhythm === 'pulse'
           ? Math.min(stepSeconds * 0.8, 0.22)
           : stepSeconds * note.duration;
@@ -573,9 +577,13 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
     if (perNote <= 0.0008) return;
 
     const env = context.createGain();
-    const attack = Math.min(0.08, held * 0.25);
+    const level = Math.min(MAX_PEAK_AMPLITUDE, perNote);
+    const attack = Math.min(voice.rhythm === 'pulse' ? 0.01 : 0.09, held * 0.25);
+    const release = Math.min(0.35, held * 0.4);
     env.gain.setValueAtTime(0.0001, when);
-    env.gain.linearRampToValueAtTime(Math.min(MAX_PEAK_AMPLITUDE, perNote), when + attack);
+    env.gain.linearRampToValueAtTime(level, when + attack);
+    // Hold, then release — otherwise a long pad is one continuous fade.
+    env.gain.setValueAtTime(level, when + Math.max(attack, held - release));
     env.gain.linearRampToValueAtTime(0.0001, when + held);
 
     const filter = applyFilter(
@@ -762,6 +770,7 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
 
     setMusicState(state: MusicState) {
       musicState = state;
+      const wasMuted = musicMuted;
       musicMuted = false;
       musicFadeUntil = 0;
       if (state.stage !== musicRegion || phrase.length === 0) {
@@ -769,6 +778,21 @@ export function createWebAudioEngine(options: WebAudioEngineOptions = {}): Audio
       }
       const context = ensureContext();
       if (!context) return;
+      // A previous stopMusic() left the music bus faded out. Bring it back, or
+      // the score would restart into a bus that is still silent.
+      if (wasMuted) {
+        const bus = busGains.get('music');
+        if (bus) {
+          try {
+            const now = context.currentTime;
+            bus.gain.cancelScheduledValues(now);
+            bus.gain.setValueAtTime(Math.max(0.0001, bus.gain.value), now);
+            bus.gain.linearRampToValueAtTime(clamp01(levels.music), now + 0.25);
+          } catch {
+            bus.gain.value = clamp01(levels.music);
+          }
+        }
+      }
       if (context.state === 'running') startScheduler();
     },
 

@@ -73,15 +73,15 @@ import type { SurfaceStyle } from '@tuner/game-core';
  */
 const ART = {
   /** Infected matter: almost black, unmistakably violet. */
-  voidViolet: '#180c30',
-  voidVioletDeep: '#120821',
+  voidViolet: '#21143d',
+  voidVioletDeep: '#180d2c',
   /** The virus's signature pulse. Nothing natural in the world is this colour. */
   magenta: '#ff35b8',
   /** Harsh, clipped white the Amplifier's pulses flash to. */
   harshWhite: '#f6e2ff',
   /** Warm stone, dry and slightly pink — a tuned sanctuary floor. */
-  warmStone: '#b09a76',
-  warmStoneLit: '#d9be86',
+  warmStone: '#a89880',
+  warmStoneLit: '#c9b795',
   /** Cool quarried stone, the untuned neutral everything else is read against. */
   coolStone: '#61688a',
   /** Dressed Keeper stone: lighter and a touch warmer than the rough quarry
@@ -98,29 +98,29 @@ const ART = {
   /** Pale sky glass — flat, cold and nearly colourless next to crystal. */
   glass: '#b9d9f2',
   glassBright: '#dff2ff',
-  glassSick: '#7a2a86',
+  glassSick: '#8a3596',
   /** Cold steel. */
   steel: '#4f5f73',
   steelBright: '#b9c7d8',
-  steelTarnished: '#2b2540',
+  steelTarnished: '#38304f',
   /** Luminous vegetation. */
   growth: '#357b57',
-  growthDead: '#251036',
+  growthDead: '#2f2049',
   /** Dry sand and its ashen, detuned counterpart. */
   sand: '#c9ac72',
   sandBright: '#e8d29a',
-  sandAsh: '#3f3550',
+  sandAsh: '#4a4060',
   /** Ember rock and its heat. */
   emberRock: '#8d3520',
   emberHot: '#ff8f3f',
-  emberSick: '#5c1149',
+  emberSick: '#6d1657',
   /** Gold, held below full brightness so ACES tone mapping cannot bleach it. */
   gold: '#d8a63c',
   goldBright: '#f7d477',
-  goldDead: '#4b3358',
+  goldDead: '#5c4268',
   /** Stone that has gone out: the colour a detuned wall settles to. */
-  stoneDead: '#1b1230',
-  stoneDeadCarved: '#24143f',
+  stoneDead: '#332654',
+  stoneDeadCarved: '#3a2c5c',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -387,7 +387,7 @@ export const SURFACE_PROFILES: Readonly<Record<SurfaceStyle, SurfaceProfile>> = 
     // surface in its own triplanar frame, which costs four trig calls and reads
     // as running water from any angle.
     baseColour: colour(ART.turquoise),
-    infectedColour: colour('#3a2564'),
+    infectedColour: colour('#412a70'),
     restoredColour: colour(ART.turquoiseBright),
     rimColour: colour('#d9fff8'),
     lineColour: colour(ART.turquoiseBright),
@@ -470,7 +470,7 @@ export const SURFACE_PROFILES: Readonly<Record<SurfaceStyle, SurfaceProfile>> = 
   }),
   restored: profile({
     baseColour: colour(PALETTE.restore),
-    infectedColour: colour('#2a1244'),
+    infectedColour: colour('#33184f'),
     restoredColour: colour('#8ff7bd'),
     rimColour: colour(PALETTE.restore),
     seamColour: colour(ART.goldBright),

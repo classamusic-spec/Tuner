@@ -74,11 +74,11 @@ const AIR = {
   /** A detuned region's bleached, faintly violet key light. */
   sickKey: '#b9a8d8',
   /** Hemisphere sky term: cold both ways, bluer when tuned. */
-  skyFillDetuned: '#2a2560',
-  skyFillTuned: '#2f6fd0',
+  skyFillDetuned: '#3a3272',
+  skyFillTuned: '#4f8ae0',
   /** Hemisphere ground bounce: dead violet, or warm stone. */
-  groundDetuned: '#160c26',
-  groundTuned: '#6b5535',
+  groundDetuned: '#2a1a3e',
+  groundTuned: '#8a6f47',
   /** The travelling resonance fill that follows the player. */
   fillDetuned: '#c23bd8',
   fillTuned: '#6ff0e0',
@@ -233,14 +233,14 @@ export interface LightingColours {
 export function createLightingColours(): LightingColours {
   return {
     key: new THREE.Color(AIR.sickKey),
-    keyIntensity: 2.1,
+    keyIntensity: 1.25,
     skyFill: new THREE.Color(AIR.skyFillDetuned),
     groundFill: new THREE.Color(AIR.groundDetuned),
-    hemisphereIntensity: 0.75,
+    hemisphereIntensity: 0.5,
     ambient: new THREE.Color(PALETTE.panel),
-    ambientIntensity: 0.18,
+    ambientIntensity: 0.14,
     resonance: new THREE.Color(AIR.fillDetuned),
-    resonanceIntensity: 1.25,
+    resonanceIntensity: 0.7,
     rim: new THREE.Color(AIR.rimDetuned),
     rimIntensity: 0.85,
   };
@@ -274,24 +274,24 @@ export function resolveLightingColours(
   const t = clamp01(restoration);
 
   target.key.copy(resolved.sunColour).lerp(cachedColour(AIR.warmSun), 0.32 * t);
-  target.key.lerp(cachedColour(AIR.sickKey), (1 - t) * 0.75);
-  target.keyIntensity = lerp(2.05, 2.75, t);
+  target.key.lerp(cachedColour(AIR.sickKey), (1 - t) * 0.85);
+  target.keyIntensity = lerp(1.25, 1.55, t);
 
   target.skyFill.copy(cachedColour(AIR.skyFillDetuned)).lerp(cachedColour(AIR.skyFillTuned), t);
   target.groundFill
     .copy(cachedColour(AIR.groundDetuned))
     .lerp(cachedColour(AIR.groundTuned), t)
     .lerp(resolved.ambientColour, 0.25);
-  target.hemisphereIntensity = lerp(0.78, 0.62, t);
+  target.hemisphereIntensity = lerp(0.5, 0.4, t);
 
   target.ambient.copy(resolved.fogColour);
-  target.ambientIntensity = lerp(0.18, 0.12, t);
+  target.ambientIntensity = lerp(0.14, 0.1, t);
 
   target.resonance.copy(cachedColour(AIR.fillDetuned)).lerp(cachedColour(AIR.fillTuned), t);
   // A gold kiss at the very end, so a fully restored region reads as cyan-gold
   // rather than as an aquarium.
   target.resonance.lerp(cachedColour(PALETTE.gold), 0.22 * t);
-  target.resonanceIntensity = lerp(1.3, 1.0, t);
+  target.resonanceIntensity = lerp(0.7, 0.55, t);
 
   target.rim.copy(cachedColour(AIR.rimDetuned)).lerp(cachedColour(AIR.rimTuned), t);
   target.rimIntensity = lerp(0.8, 1.05, t);
