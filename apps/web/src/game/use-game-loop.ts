@@ -48,6 +48,8 @@ export interface GameLoopHandle {
   readonly quality: ReturnType<typeof createAdaptiveQualityController>;
   readonly ready: boolean;
   readonly error: Error | null;
+  /** True when the device actually has a touchscreen. */
+  readonly hasTouch: boolean;
   /** Frames rendered since boot, for the E2E diagnostics surface. */
   readonly frames: { current: number };
   start(stageId: StageId): void;
@@ -251,6 +253,7 @@ export function useGameLoop(target: HTMLElement | null): GameLoopHandle {
     quality,
     ready,
     error,
+    hasTouch: capabilities.hasTouch,
     frames: framesRef,
     start,
     stop,

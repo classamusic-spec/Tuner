@@ -261,7 +261,7 @@ export function TuningRing({
   colour: string;
   trackColour?: string;
   label?: string;
-  sublabel?: string;
+  sublabel?: string | undefined;
   token?: SemanticToken;
   testId?: string;
 } & WithTheme): ReactElement {

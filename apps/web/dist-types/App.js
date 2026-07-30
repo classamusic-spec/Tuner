@@ -167,7 +167,7 @@ export function App() {
                     loop.stop();
                     setPausedUI(false);
                     replace('title');
-                } })), screen === 'playing' && loop.touch && (_jsx(TouchControls, { visual: loop.touch.visual, opacity: 0.7 }))] }));
+                } })), screen === 'playing' && loop.touch && loop.hasTouch && (_jsx(TouchControls, { visual: loop.touch.visual, opacity: 0.7 }))] }));
 }
 /**
  * Bridges the simulation into the R3F scene.

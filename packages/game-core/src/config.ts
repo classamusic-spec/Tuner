@@ -251,7 +251,7 @@ export const DEFAULT_CAMERA_CONFIG: CameraConfig = {
   distance: 7.2,
   minDistance: 2.4,
   maxDistance: 11,
-  heightOffset: 1.35,
+  heightOffset: 1.55,
   shoulderOffset: 0.55,
 
   positionSmoothing: 0.0016,

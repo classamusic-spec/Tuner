@@ -238,7 +238,12 @@ export function App(): ReactElement {
         />
       )}
 
-      {screen === 'playing' && loop.touch && (
+      {/*
+        Only on touch-capable devices. Drawing thumb buttons over a desktop
+        screen is not a harmless extra — it covers the HUD and tells the player
+        the wrong thing about how to play.
+      */}
+      {screen === 'playing' && loop.touch && loop.hasTouch && (
         <TouchControls visual={loop.touch.visual} opacity={0.7} />
       )}
     </div>

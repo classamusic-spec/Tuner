@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactElement } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactElement } from 'react';
 import { DIFFICULTY_PROFILES, DIFFICULTY_IDS, GRAPHICS_TIERS } from '@tuner/shared';
 import type { StageResult, WorldState } from '@tuner/game-core';
 import { Button, Panel, Slider, Toggle, TuningRing, TunerEmblem } from './components.js';
@@ -559,8 +559,28 @@ export function ResultsScreen({ onContinue }: { onContinue: () => void }): React
 // HUD
 // ---------------------------------------------------------------------------
 
+/**
+ * True on short viewports — phone landscape is around 390 px tall, where the
+ * full-size rings and a centred subtitle collide with the thumb cluster. The
+ * touch-layout tests guarantee buttons never overlap *each other*; they say
+ * nothing about the HUD landing on top of them, which is what this handles.
+ */
+function useCompactHUD(): boolean {
+  const [compact, setCompact] = useState(
+    typeof window !== 'undefined' ? window.innerHeight < 520 : false,
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = (): void => setCompact(window.innerHeight < 520);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return compact;
+}
+
 export function HUD({ world }: { world: WorldState }): ReactElement {
   const theme = useTheme();
+  const compact = useCompactHUD();
   const notifications = useUIStore((s) => s.notifications);
   const subtitle = useUIStore((s) => s.subtitle);
   const showSubtitles = useUIStore((s) => s.accessibility.subtitles) !== false;
@@ -603,10 +623,10 @@ export function HUD({ world }: { world: WorldState }): ReactElement {
           theme={theme}
           testId="hud-coherence"
           progress={coherence}
-          size={92}
+          size={compact ? 62 : 92}
           colour={low ? theme.colour.alarm : theme.colour.resonance}
           label={`${Math.round(player.coherence)}`}
-          sublabel="COHERENCE"
+          sublabel={compact ? undefined : 'COHERENCE'}
           token={low ? 'alarm' : 'resonance'}
         />
 
@@ -614,8 +634,8 @@ export function HUD({ world }: { world: WorldState }): ReactElement {
           <TuningRing
             theme={theme}
             progress={player.charge.tier / 3}
-            size={62}
-            thickness={5}
+            size={compact ? 44 : 62}
+            thickness={compact ? 4 : 5}
             colour={theme.colour.gold}
             label={player.charge.tier > 0 ? `${player.charge.tier}` : ''}
             token="sacred"
@@ -683,11 +703,11 @@ export function HUD({ world }: { world: WorldState }): ReactElement {
           data-testid="hud-objective"
           style={{
             position: 'absolute',
-            top: theme.space(3),
+            top: theme.space(2),
             left: theme.space(3),
-            fontSize: theme.font.small,
+            fontSize: compact ? theme.font.tiny : theme.font.small,
             color: theme.colour.textDim,
-            maxWidth: '18rem',
+            maxWidth: compact ? '14rem' : '18rem',
           }}
         >
           {world.stage.objective}
@@ -698,12 +718,14 @@ export function HUD({ world }: { world: WorldState }): ReactElement {
       <div
         style={{
           position: 'absolute',
-          right: theme.space(3),
-          top: theme.space(3),
+          // On a phone the right edge belongs to the thumb cluster, so toasts
+          // move to the left rail rather than landing on the fire button.
+          ...(compact
+            ? { left: theme.space(3), top: theme.space(6), alignItems: 'flex-start' }
+            : { right: theme.space(3), top: theme.space(10), alignItems: 'flex-end' }),
           display: 'flex',
           flexDirection: 'column',
           gap: theme.space(1),
-          alignItems: 'flex-end',
         }}
       >
         {notifications.map((n) => (
@@ -714,9 +736,9 @@ export function HUD({ world }: { world: WorldState }): ReactElement {
               border: `1px solid ${theme.colour.outline}`,
               borderRadius: theme.radius.md,
               padding: `${theme.space(1)} ${theme.space(2)}`,
-              fontSize: theme.font.small,
+              fontSize: compact ? theme.font.tiny : theme.font.small,
               color: theme.colour.text,
-              maxWidth: '22rem',
+              maxWidth: compact ? '17rem' : '22rem',
             }}
           >
             {n.text}
@@ -730,15 +752,15 @@ export function HUD({ world }: { world: WorldState }): ReactElement {
           data-testid="hud-subtitle"
           style={{
             position: 'absolute',
-            bottom: theme.space(3),
-            left: '50%',
+            bottom: compact ? theme.space(1.5) : theme.space(3),
+            left: compact ? '40%' : '50%',
             transform: 'translateX(-50%)',
-            maxWidth: 'min(40rem, 80vw)',
+            maxWidth: compact ? 'min(21rem, 46vw)' : 'min(40rem, 80vw)',
             textAlign: 'center',
             background: 'rgba(4,6,20,0.8)',
             borderRadius: theme.radius.md,
-            padding: `${theme.space(1)} ${theme.space(2.5)}`,
-            fontSize: theme.font.body,
+            padding: `${theme.space(0.75)} ${theme.space(2)}`,
+            fontSize: compact ? theme.font.tiny : theme.font.body,
             color: theme.colour.text,
           }}
         >

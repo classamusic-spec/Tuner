@@ -131,7 +131,7 @@ export interface CameraState {
 export function createCameraState(config: CameraConfig): CameraState {
   return {
     yaw: 0,
-    pitch: -0.18,
+    pitch: -0.34,
     lookAt: vec3(),
     position: vec3(0, 2, config.distance),
     distance: config.distance,

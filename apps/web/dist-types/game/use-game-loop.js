@@ -179,6 +179,7 @@ export function useGameLoop(target) {
         quality,
         ready,
         error,
+        hasTouch: capabilities.hasTouch,
         frames: framesRef,
         start,
         stop,

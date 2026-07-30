@@ -75,8 +75,9 @@ export function TouchControls({ visual, opacity }: TouchControlsProps): ReactEle
       {/* Hint ring showing where the stick will appear, before first touch. */}
       {!visual.stickOrigin && (
         <circle
-          cx={layout.stickRegion.x + layout.stickRegion.width * 0.32}
-          cy={layout.stickRegion.y + layout.stickRegion.height * 0.72}
+          // Kept off the bottom-left corner, which the Coherence ring owns.
+          cx={layout.stickRegion.x + layout.stickRegion.width * 0.52}
+          cy={layout.stickRegion.y + layout.stickRegion.height * 0.62}
           r={layout.stickRadius * 0.8}
           fill="none"
           stroke={theme.colour.textDim}
