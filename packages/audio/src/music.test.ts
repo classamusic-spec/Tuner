@@ -393,6 +393,22 @@ describe('phrase generation', () => {
   });
 });
 
+describe('the package surface', () => {
+  it('re-exports the contract, the sound design, the score and the adapter', async () => {
+    // `export *` silently drops colliding names, so the index is worth asserting.
+    const surface = await import('./index.js');
+    expect(typeof surface.createNullAudioEngine).toBe('function');
+    expect(typeof surface.createWebAudioEngine).toBe('function');
+    expect(typeof surface.createMusicDirector).toBe('function');
+    expect(typeof surface.playbackHzForInfection).toBe('function');
+    expect(typeof surface.formSoundFamily).toBe('function');
+    expect(typeof surface.generatePhrase).toBe('function');
+    expect(surface.SFX_IDS).toHaveLength(33);
+    expect(Object.keys(surface.REGION_MOTIFS)).toHaveLength(11);
+    expect(surface.MAX_PEAK_AMPLITUDE).toBeLessThan(1);
+  });
+});
+
 describe('the Web Audio engine without Web Audio', () => {
   it('does not throw when the platform has no AudioContext', () => {
     expect(typeof (globalThis as { AudioContext?: unknown }).AudioContext).toBe('undefined');
